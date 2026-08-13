@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #10B981;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8fafc;
+}
+
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight text-slate-800;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-emerald-500 text-white px-6 py-3 rounded font-bold shadow-sm hover:bg-emerald-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2;
+  }
+  
+  .card {
+    @apply bg-white p-4 rounded border border-slate-200 shadow-sm transition-shadow;
+  }
+  
+  .input-field {
+    @apply w-full p-3 rounded border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition-all;
+  }
+}
+
+/* Custom Scrollbar - Minimalist */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 4px;
+}
+
+/* Timeline specific */
+.timeline-dot {
+  @apply absolute -left-[19px] top-1.5 w-3 h-3 bg-white border-2 border-emerald-500 rounded-full;
+}
+
+/* Thumb-first UX: Bottom Navigation or Action Areas */
+.bottom-action {
+  @apply fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100 max-w-md mx-auto;
+}

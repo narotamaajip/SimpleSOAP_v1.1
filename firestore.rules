@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Doctors can only read/write their OWN profile document
+    match /doctors/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Patients collection
+    match /patients/{patientId} {
+
+      // READ: only if the requester's UID is in accessList
+      allow read: if request.auth != null
+        && request.auth.uid in resource.data.accessList;
+
+      // CREATE: enforce that the creator sets themselves as ownerId
+      // and that accessList only contains their own UID
+      allow create: if request.auth != null
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.accessList.hasOnly([request.auth.uid])
+        && request.resource.data.ownerId in request.resource.data.accessList;
+
+      // UPDATE: two valid cases:
+      // (A) Normal update — user is already in accessList and cannot change ownerId
+      // (B) Share code redeem — user adds only themselves to accessList (not yet a member)
+      allow update: if request.auth != null && (
+        // Case A: existing member editing SOAP, profile, shareCode generation, etc.
+        (
+          request.auth.uid in resource.data.accessList
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerId'])
+        )
+        ||
+        // Case B: redeeming a share code — user adds only themselves to accessList
+        (
+          resource.data.shareCode is string
+          && resource.data.shareCode.size() > 0
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['accessList'])
+          && request.resource.data.accessList.hasAll(resource.data.accessList)
+          && request.resource.data.accessList.size() == resource.data.accessList.size() + 1
+          && request.auth.uid in request.resource.data.accessList
+          && !(request.auth.uid in resource.data.accessList)
+        )
+      );
+
+      // DELETE:
+      // Use resource.data.get() to safely handle both cases:
+      // (A) ownerId matches the current user
+      // (B) Legacy patient where ownerId was never set — any accessList member can delete
+      allow delete: if request.auth != null && (
+        resource.data.get('ownerId', '') == request.auth.uid
+        || (resource.data.get('ownerId', '') == '' && request.auth.uid in resource.data.accessList)
+      );
+    }
+  }
+}
