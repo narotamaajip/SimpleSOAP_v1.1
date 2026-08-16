@@ -29,7 +29,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icons/*.png'],
+      includeAssets: ['favicon.ico', 'favicon.svg', 'logo.svg', 'apple-touch-icon.png', 'icons/*.png'],
       manifest: {
         name: 'SimpleSOAP',
         short_name: 'SimpleSOAP',
