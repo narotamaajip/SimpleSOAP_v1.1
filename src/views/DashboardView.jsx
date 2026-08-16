@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { StatCard } from '../components/ui/StatCard';
 import { PatientCardCompact } from '../components/PatientCardCompact';
+import { LogoIcon } from '../components/ui/Logo';
 
 export function DashboardView({ patients, stats, doctorProfile, onSelectPatient, onNavigateToPatients }) {
   const pendingPatients = patients.filter((p) => !p.isFollowedUp && p.status !== 'PULANG');
@@ -12,8 +13,11 @@ export function DashboardView({ patients, stats, doctorProfile, onSelectPatient,
       exit={{ opacity: 0 }}
       className="flex-1 overflow-y-auto no-scrollbar pb-10"
     >
-      <div className="bg-white px-4 py-4 flex items-center justify-center sticky top-0 z-20 border-b border-emerald-50">
-        <h1 className="text-emerald-800 font-black text-base tracking-tight uppercase">SimpleSOAP</h1>
+      <div className="bg-white px-4 py-3.5 flex items-center justify-center sticky top-0 z-20 border-b border-emerald-50 shadow-sm">
+        <div className="flex items-center gap-2">
+          <LogoIcon className="w-5 h-6" />
+          <h1 className="text-emerald-800 font-black text-lg tracking-tight">SimpleSOAP</h1>
+        </div>
       </div>
 
       <div className="p-4 space-y-6">

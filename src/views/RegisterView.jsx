@@ -7,6 +7,7 @@ import {
   signInWithPopup
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { LogoIcon } from '../components/ui/Logo';
 
 export default function RegisterView({ onSwitch }) {
   const [email, setEmail] = useState('');
@@ -45,6 +46,9 @@ export default function RegisterView({ onSwitch }) {
     <div className="max-w-md mx-auto h-screen bg-white flex flex-col items-center justify-center border-x border-slate-200 p-6 overflow-y-auto">
       <div className="w-full max-w-sm space-y-8 my-auto py-8">
         <div className="text-center space-y-2">
+          <div className="bg-emerald-50 border border-emerald-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+            <LogoIcon className="w-8 h-8" />
+          </div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">Daftar Akun Baru</h1>
           <p className="text-xs font-medium text-slate-500">Akses terbatas khusus tenaga medis terdaftar.</p>
         </div>

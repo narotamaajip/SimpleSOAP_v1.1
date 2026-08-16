@@ -6,6 +6,7 @@ import {
   signInWithPopup
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { LogoIcon } from '../components/ui/Logo';
 
 export function LoginView({ onSwitch, onForgotPassword }) {
   const [email, setEmail] = useState('');
@@ -43,8 +44,8 @@ export function LoginView({ onSwitch, onForgotPassword }) {
     <div className="max-w-md mx-auto h-screen bg-white flex flex-col items-center justify-center border-x border-slate-200 p-6">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center space-y-2">
-          <div className="bg-emerald-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Activity className="text-emerald-600" size={32} />
+          <div className="bg-emerald-50 border border-emerald-100 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+            <LogoIcon className="w-10 h-10" />
           </div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">SimpleSOAP</h1>
           <p className="text-sm font-medium text-slate-500">Masuk untuk mengakses rekam medis pasien.</p>

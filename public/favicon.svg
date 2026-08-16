@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Smartphone Frame Silhouette (centered vertically) -->
+  <rect x="144" y="56" width="224" height="400" rx="36" fill="none" stroke="#10B981" stroke-width="24"/>
+  
+  <!-- Speaker/Sensor Notch -->
+  <line x1="226" y1="84" x2="286" y2="84" stroke="#10B981" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- Sharp-edged Medical Cross (+) in medium-dark emerald -->
+  <path d="M256 180v100M206 230h100" stroke="#059669" stroke-width="44" stroke-linecap="square" stroke-linejoin="miter"/>
+
+  <!-- Supporting color accents (3 Data Lines) -->
+  <line x1="190" y1="326" x2="322" y2="326" stroke="#4B5563" stroke-width="14" stroke-linecap="round"/>
+  <line x1="190" y1="361" x2="270" y2="361" stroke="#4B5563" stroke-width="14" stroke-linecap="round"/>
+  <line x1="190" y1="396" x2="300" y2="396" stroke="#4B5563" stroke-width="14" stroke-linecap="round"/>
+</svg>
