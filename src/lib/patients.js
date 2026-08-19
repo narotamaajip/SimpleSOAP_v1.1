@@ -25,6 +25,7 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { getFriendlyErrorMessage } from '../utils/friendlyError';
 
 const PATIENTS_COL = 'patients';
 
@@ -147,7 +148,7 @@ export async function deletePatient(patientId, patient, currentUserId) {
       reason: error.code === 'permission-denied' ? 'permission_denied_firestore' : 'unknown',
       message: error.code === 'permission-denied'
         ? 'Gagal menghapus: Anda tidak memiliki izin. Pastikan Anda adalah dokter yang mendaftarkan pasien ini.'
-        : 'Gagal menghapus data pasien. Error: ' + error.message
+        : getFriendlyErrorMessage(error, 'Gagal menghapus data pasien. Silakan periksa koneksi Anda dan coba lagi.')
     };
   }
 }

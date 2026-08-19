@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, User, AlertTriangle, Activity, Pencil, Send, X } from 'lucide-react';
-import { ListRestart } from 'lucide-react';
+import { ChevronLeft, User, AlertTriangle, Activity, Pencil, Send, X, ListRestart } from 'lucide-react';
 import { generateShareCode } from '../lib/patients';
 import { SoapItem } from '../components/SoapItem';
 import { cn } from '../utils/cn';
@@ -150,6 +149,7 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
         {/* Action Button */}
         <div className="px-4 mb-6">
           <button
+            id="tour-add-soap-btn"
             onClick={onAddSoap}
             className="w-full bg-emerald-600 text-white py-3.5 rounded-lg font-black text-sm shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
           >

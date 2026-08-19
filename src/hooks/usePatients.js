@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { subscribeToPatients } from '../lib/patients';
+import { getFriendlyErrorMessage } from '../utils/friendlyError';
 
 /**
  * usePatients — subscribes to real-time patient list from Firestore.
@@ -24,15 +25,14 @@ export function usePatients(user, authView) {
       },
       (err) => {
         console.error('Firestore Error:', err.code, err.message);
-        if (err.code === 'permission-denied') {
-          alert('Gagal memuat data pasien. Pastikan Firestore Security Rules di Firebase Console sudah diizinkan.');
-        }
+        const friendlyMsg = getFriendlyErrorMessage(err, 'Gagal memuat data pasien. Silakan periksa koneksi internet Anda.');
+        alert(friendlyMsg);
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [user, authView]);
+  }, [user?.uid, authView]);
 
   return { patients, loading };
 }

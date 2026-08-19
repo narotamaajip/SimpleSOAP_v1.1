@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --primary: #10B981;
+  --primary: #059669;
 }
 
 body {
@@ -22,15 +22,15 @@ body {
 
 @layer components {
   .btn-primary {
-    @apply bg-emerald-500 text-white px-6 py-3 rounded font-bold shadow-sm hover:bg-emerald-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2;
+    @apply bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold shadow-sm hover:bg-emerald-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2;
   }
   
   .card {
-    @apply bg-white p-4 rounded border border-slate-200 shadow-sm transition-shadow;
+    @apply bg-white p-4 rounded-xl border border-slate-200 shadow-sm transition-shadow;
   }
   
   .input-field {
-    @apply w-full p-3 rounded border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition-all;
+    @apply w-full p-3 rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition-all;
   }
 }
 
@@ -54,4 +54,79 @@ body {
 /* Thumb-first UX: Bottom Navigation or Action Areas */
 .bottom-action {
   @apply fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100 max-w-md mx-auto;
+}
+
+/* Driver.js Emerald Theme Customization */
+.driver-popover.simplesoap-theme {
+  background-color: #ffffff;
+  color: #1e293b;
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  max-width: 320px;
+  font-family: 'Inter', sans-serif;
+}
+
+.driver-popover.simplesoap-theme .driver-popover-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #065f46;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+
+.driver-popover.simplesoap-theme .driver-popover-description {
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.driver-popover.simplesoap-theme .driver-popover-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.driver-popover.simplesoap-theme .driver-popover-btn {
+  background-color: #059669;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  text-shadow: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.driver-popover.simplesoap-theme .driver-popover-btn:hover {
+  background-color: #047857;
+}
+
+.driver-popover.simplesoap-theme .driver-popover-close-btn {
+  color: #94a3b8;
+  font-size: 18px;
+  transition: color 0.2s;
+}
+
+.driver-popover.simplesoap-theme .driver-popover-close-btn:hover {
+  color: #ef4444;
+}
+
+.driver-popover.simplesoap-theme .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: #ffffff;
+}
+.driver-popover.simplesoap-theme .driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: #ffffff;
+}
+.driver-popover.simplesoap-theme .driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: #ffffff;
+}
+.driver-popover.simplesoap-theme .driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: #ffffff;
 }

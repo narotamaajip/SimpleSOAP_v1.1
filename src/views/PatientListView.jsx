@@ -55,23 +55,25 @@ export function PatientListView({
     return [...new Set(rooms)].sort();
   }, [patients]);
 
-  const filtered = patients.filter((p) => {
-    const matchesSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.ward?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRoom = roomFilter ? p.ward === roomFilter : true;
+  const filtered = useMemo(() => {
+    return patients.filter((p) => {
+      const matchesSearch =
+        p.name.toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+        p.ward?.toLowerCase().includes((searchQuery || '').toLowerCase());
+      const matchesRoom = roomFilter ? p.ward === roomFilter : true;
 
-    let matchesCategory = true;
-    if (categoryFilter === 'AKTIF') {
-      matchesCategory = p.status !== 'PULANG';
-    } else if (categoryFilter === 'BELUM_FU') {
-      matchesCategory = !p.isFollowedUp && p.status !== 'PULANG';
-    } else if (categoryFilter === 'INAKTIF') {
-      matchesCategory = p.status === 'PULANG';
-    }
+      let matchesCategory = true;
+      if (categoryFilter === 'AKTIF') {
+        matchesCategory = p.status !== 'PULANG';
+      } else if (categoryFilter === 'BELUM_FU') {
+        matchesCategory = !p.isFollowedUp && p.status !== 'PULANG';
+      } else if (categoryFilter === 'INAKTIF') {
+        matchesCategory = p.status === 'PULANG';
+      }
 
-    return matchesSearch && matchesRoom && matchesCategory;
-  });
+      return matchesSearch && matchesRoom && matchesCategory;
+    });
+  }, [patients, searchQuery, roomFilter, categoryFilter]);
 
   return (
     <motion.div
@@ -190,13 +192,19 @@ export function PatientListView({
         {filtered.length === 0 ? (
           <p className="text-center text-slate-400 text-sm font-bold mt-10">Tidak ada pasien yang sesuai.</p>
         ) : (
-          filtered.map((p) => (
-            <PatientCardDetailed key={p.id} patient={p} onClick={() => onSelectPatient(p.id)} />
+          filtered.map((p, idx) => (
+            <PatientCardDetailed
+              key={p.id}
+              id={p.name === 'Pasien Contoh' || idx === 0 ? 'tour-sample-patient-card' : undefined}
+              patient={p}
+              onClick={() => onSelectPatient(p.id)}
+            />
           ))
         )}
       </div>
 
       <button
+        id="tour-add-patient-btn"
         onClick={onAddPatientClick}
         className="absolute bottom-6 right-6 bg-emerald-600 text-white w-14 h-14 flex items-center justify-center rounded-full shadow-lg shadow-emerald-600/40 active:scale-95 transition-transform z-30"
       >

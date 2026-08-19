@@ -20,7 +20,7 @@ export default defineConfig({
           ],
           'vendor-motion': ['framer-motion'],
           'vendor-lucide': ['lucide-react'],
-          'vendor-utils': ['clsx', 'tailwind-merge']
+          'vendor-utils': ['clsx', 'tailwind-merge', 'driver.js']
         }
       }
     }
@@ -38,6 +38,9 @@ export default defineConfig({
         background_color: '#f8fcf9', // matches app background
         display: 'standalone',
         start_url: '/',
+        scope: '/',
+        id: '/',
+        lang: 'id-ID',
         icons: [
           {
             src: 'icons/icon-192.png',

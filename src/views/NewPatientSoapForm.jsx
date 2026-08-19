@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 import { AccordionSection } from '../components/ui/AccordionSection';
 import { VitalInput } from '../components/ui/VitalInput';
+import { cn } from '../utils/cn';
 
 const SOAP_TEMPLATES = {
   stabil: {
@@ -22,17 +23,66 @@ const SOAP_TEMPLATES = {
   }
 };
 
-export function NewPatientSoapForm({ onBack, onSave }) {
+export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }) {
   const [activeSection, setActiveSection] = useState('data');
-  const [patientData, setPatientData] = useState({
-    name: '', rm: '', ward: '', age: '', sex: 'L', dpjp: '', dx: '', alergi: ''
+  const [patientData, setPatientData] = useState(() => {
+    if (isTourActive) {
+      return {
+        name: 'Pasien Contoh',
+        rm: 'RM-001',
+        ward: 'Bangsal Contoh',
+        age: '45',
+        sex: 'L',
+        dpjp: defaultDpjp || 'dr. Tester',
+        dx: 'Data contoh — boleh dihapus',
+        alergi: 'Tidak ada'
+      };
+    }
+    return {
+      name: '', rm: '', ward: '', age: '', sex: 'L', dpjp: defaultDpjp || '', dx: '', alergi: ''
+    };
   });
+
+  const [errors, setErrors] = useState({});
   const [isDischarged, setIsDischarged] = useState(false);
   const [soap, setSoap] = useState({
     s: '',
     vitals: { td: '', nadi: '', rr: '', suhu: '', spo2: '', bb: '' },
     o: '', a: '', p: '', i: ''
   });
+
+  const validate = () => {
+    const newErrors = {};
+    if (!patientData.name.trim()) {
+      newErrors.name = 'Nama pasien wajib diisi.';
+    }
+    if (!patientData.ward.trim()) {
+      newErrors.ward = 'Bangsal / ruangan wajib diisi.';
+    }
+    if (!patientData.dpjp.trim()) {
+      newErrors.dpjp = 'Nama DPJP wajib diisi.';
+    }
+    if (!patientData.dx.trim()) {
+      newErrors.dx = 'Diagnosis utama wajib diisi.';
+    }
+
+    const trimmedAge = String(patientData.age || '').trim();
+    if (!trimmedAge) {
+      newErrors.age = 'Usia wajib diisi.';
+    } else {
+      const ageNum = Number(trimmedAge);
+      if (isNaN(ageNum) || !/^\d+$/.test(trimmedAge) || ageNum < 0 || ageNum > 130) {
+        newErrors.age = 'Usia harus 0-130 thn.';
+      }
+    }
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      setActiveSection('data');
+      return false;
+    }
+    return true;
+  };
 
   const applyTemplate = (type) => {
     const t = SOAP_TEMPLATES[type];
@@ -62,10 +112,7 @@ export function NewPatientSoapForm({ onBack, onSave }) {
   };
 
   const handleSave = () => {
-    if (!patientData.name.trim()) {
-      alert('Nama pasien wajib diisi.');
-      return;
-    }
+    if (!validate()) return;
 
     const formattedO = buildFormattedO();
     const initialSoap =
@@ -80,15 +127,36 @@ export function NewPatientSoapForm({ onBack, onSave }) {
           }
         : null;
 
-    onSave({ ...patientData, alergi: patientData.alergi || 'Tidak ada' }, initialSoap);
+    onSave(
+      {
+        name: patientData.name.trim(),
+        rm: patientData.rm.trim(),
+        ward: patientData.ward.trim(),
+        age: patientData.age.trim(),
+        sex: patientData.sex,
+        dpjp: patientData.dpjp.trim(),
+        dx: patientData.dx.trim(),
+        alergi: patientData.alergi.trim() || 'Tidak ada'
+      },
+      initialSoap
+    );
   };
 
   const handleSaveOnly = () => {
-    if (!patientData.name.trim()) {
-      alert('Nama pasien wajib diisi.');
-      return;
-    }
-    onSave({ ...patientData, alergi: patientData.alergi || 'Tidak ada' }, null);
+    if (!validate()) return;
+    onSave(
+      {
+        name: patientData.name.trim(),
+        rm: patientData.rm.trim(),
+        ward: patientData.ward.trim(),
+        age: patientData.age.trim(),
+        sex: patientData.sex,
+        dpjp: patientData.dpjp.trim(),
+        dx: patientData.dx.trim(),
+        alergi: patientData.alergi.trim() || 'Tidak ada'
+      },
+      null
+    );
   };
 
   return (
@@ -105,6 +173,7 @@ export function NewPatientSoapForm({ onBack, onSave }) {
         </button>
         <h2 className="text-emerald-800 font-black text-sm tracking-tight uppercase">Pasien Baru</h2>
         <button
+          id="tour-save-patient-btn-header"
           onClick={handleSave}
           className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform"
         >
@@ -121,63 +190,141 @@ export function NewPatientSoapForm({ onBack, onSave }) {
         <div className="px-4 space-y-3 pb-8">
           {/* Data Pasien Accordion */}
           <AccordionSection
-            id="data" title="Data Pasien"
+            id="data"
+            title="Data Pasien"
             isActive={activeSection === 'data'}
             onClick={() => setActiveSection(activeSection === 'data' ? null : 'data')}
           >
             <div className="space-y-3">
-              <input
-                required value={patientData.name}
-                onChange={(e) => setPatientData({ ...patientData, name: e.target.value })}
-                placeholder="Nama Pasien"
-                className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-white"
-              />
-              <div className="flex gap-2">
+              <div>
                 <input
-                  value={patientData.rm}
-                  onChange={(e) => setPatientData({ ...patientData, rm: e.target.value })}
-                  placeholder="No RM (opsional)"
-                  className="w-1/2 p-3 rounded-lg border border-slate-200 text-sm font-medium bg-white"
+                  value={patientData.name}
+                  onChange={(e) => {
+                    setPatientData({ ...patientData, name: e.target.value });
+                    if (errors.name) setErrors({ ...errors, name: '' });
+                  }}
+                  placeholder="Nama Pasien *"
+                  className={cn(
+                    'w-full p-3 rounded-lg border text-sm font-medium bg-white outline-none transition-colors',
+                    errors.name ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                  )}
                 />
-                <input
-                  required value={patientData.age}
-                  onChange={(e) => setPatientData({ ...patientData, age: e.target.value })}
-                  type="text" inputMode="numeric" pattern="[0-9]*" placeholder="Usia"
-                  className="w-1/4 p-3 rounded-lg border border-slate-200 text-sm font-medium bg-white"
-                />
-                <select
-                  value={patientData.sex}
-                  onChange={(e) => setPatientData({ ...patientData, sex: e.target.value })}
-                  className="w-1/4 p-3 rounded-lg border border-slate-200 text-sm font-medium bg-white"
-                >
-                  <option value="L">L</option>
-                  <option value="P">P</option>
-                </select>
+                {errors.name && (
+                  <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} /> {errors.name}
+                  </p>
+                )}
               </div>
-              <input
-                required value={patientData.ward}
-                onChange={(e) => setPatientData({ ...patientData, ward: e.target.value })}
-                placeholder="Bangsal / Ruangan"
-                className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-white"
-              />
-              <input
-                required value={patientData.dpjp}
-                onChange={(e) => setPatientData({ ...patientData, dpjp: e.target.value })}
-                placeholder="DPJP"
-                className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-white"
-              />
-              <input
-                required value={patientData.dx}
-                onChange={(e) => setPatientData({ ...patientData, dx: e.target.value })}
-                placeholder="Diagnosis Utama"
-                className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-white"
-              />
-              <input
-                value={patientData.alergi}
-                onChange={(e) => setPatientData({ ...patientData, alergi: e.target.value })}
-                placeholder="Alergi Obat (opsional)"
-                className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-white"
-              />
+
+              <div className="flex gap-2 items-start">
+                <div className="w-1/2">
+                  <input
+                    value={patientData.rm}
+                    onChange={(e) => setPatientData({ ...patientData, rm: e.target.value })}
+                    placeholder="No RM (opsional)"
+                    className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-white outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div className="w-1/4">
+                  <input
+                    value={patientData.age}
+                    onChange={(e) => {
+                      setPatientData({ ...patientData, age: e.target.value });
+                      if (errors.age) setErrors({ ...errors, age: '' });
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Usia *"
+                    className={cn(
+                      'w-full p-3 rounded-lg border text-sm font-medium bg-white outline-none transition-colors',
+                      errors.age ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                    )}
+                  />
+                  {errors.age && (
+                    <p className="text-[10px] font-bold text-rose-600 mt-1 leading-tight">{errors.age}</p>
+                  )}
+                </div>
+                <div className="w-1/4">
+                  <select
+                    value={patientData.sex}
+                    onChange={(e) => setPatientData({ ...patientData, sex: e.target.value })}
+                    className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-white outline-none focus:border-emerald-500"
+                  >
+                    <option value="L">L</option>
+                    <option value="P">P</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <input
+                  value={patientData.ward}
+                  onChange={(e) => {
+                    setPatientData({ ...patientData, ward: e.target.value });
+                    if (errors.ward) setErrors({ ...errors, ward: '' });
+                  }}
+                  placeholder="Bangsal / Ruangan *"
+                  className={cn(
+                    'w-full p-3 rounded-lg border text-sm font-medium bg-white outline-none transition-colors',
+                    errors.ward ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                  )}
+                />
+                {errors.ward && (
+                  <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} /> {errors.ward}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <input
+                  value={patientData.dpjp}
+                  onChange={(e) => {
+                    setPatientData({ ...patientData, dpjp: e.target.value });
+                    if (errors.dpjp) setErrors({ ...errors, dpjp: '' });
+                  }}
+                  placeholder="DPJP *"
+                  className={cn(
+                    'w-full p-3 rounded-lg border text-sm font-medium bg-white outline-none transition-colors',
+                    errors.dpjp ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                  )}
+                />
+                {errors.dpjp && (
+                  <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} /> {errors.dpjp}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <input
+                  value={patientData.dx}
+                  onChange={(e) => {
+                    setPatientData({ ...patientData, dx: e.target.value });
+                    if (errors.dx) setErrors({ ...errors, dx: '' });
+                  }}
+                  placeholder="Diagnosis Utama *"
+                  className={cn(
+                    'w-full p-3 rounded-lg border text-sm font-medium bg-white outline-none transition-colors',
+                    errors.dx ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                  )}
+                />
+                {errors.dx && (
+                  <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} /> {errors.dx}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <input
+                  value={patientData.alergi}
+                  onChange={(e) => setPatientData({ ...patientData, alergi: e.target.value })}
+                  placeholder="Alergi Obat (opsional)"
+                  className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-white outline-none focus:border-emerald-500"
+                />
+              </div>
+
               <button
                 onClick={handleSaveOnly}
                 className="w-full py-2.5 bg-slate-800 text-white font-bold rounded-lg mt-2 text-xs shadow-sm active:scale-[0.98] transition-transform"
@@ -238,7 +385,11 @@ export function NewPatientSoapForm({ onBack, onSave }) {
 
           {/* Action Buttons */}
           <div className="pt-4 pb-20 space-y-3">
-            <button onClick={handleSave} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-sm shadow-lg shadow-emerald-600/30 active:scale-[0.98] transition-transform">
+            <button
+              id="tour-save-patient-btn"
+              onClick={handleSave}
+              className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-sm shadow-lg shadow-emerald-600/30 active:scale-[0.98] transition-transform"
+            >
               Simpan Pasien &amp; SOAP
             </button>
             <button onClick={onBack} className="w-full py-4 bg-white border-2 border-emerald-100 rounded-xl text-slate-700 font-bold text-sm shadow-sm active:scale-[0.98] transition-transform">

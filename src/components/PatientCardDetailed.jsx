@@ -1,12 +1,13 @@
 import { Stethoscope, MapPin } from 'lucide-react';
 import { cn } from '../utils/cn';
 
-export function PatientCardDetailed({ patient, onClick }) {
+export function PatientCardDetailed({ patient, onClick, id }) {
   const isPending = !patient.isFollowedUp && patient.status !== 'PULANG';
   const isDischarged = patient.status === 'PULANG';
 
   return (
     <div
+      id={id}
       onClick={onClick}
       className={cn(
         'bg-white p-4 rounded-xl border shadow-sm border-l-[6px] active:scale-[0.99] transition-all cursor-pointer',

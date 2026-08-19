@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
+import { cn } from '../utils/cn';
 
 export function EditPatientProfileForm({ patient, onBack, onSave }) {
-  // Only keep editable fields – do NOT spread internal Firestore/runtime fields
   const [patientData, setPatientData] = useState({
     name: patient.name || '',
     rm: patient.rm || '',
-    age: patient.age || '',
+    age: String(patient.age ?? ''),
     sex: patient.sex || 'L',
     ward: patient.ward || '',
     dpjp: patient.dpjp || '',
@@ -15,8 +15,49 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
     alergi: patient.alergi || ''
   });
 
+  const [errors, setErrors] = useState({});
+
+  const validate = () => {
+    const newErrors = {};
+    if (!patientData.name.trim()) {
+      newErrors.name = 'Nama pasien wajib diisi.';
+    }
+    if (!patientData.ward.trim()) {
+      newErrors.ward = 'Bangsal / ruangan wajib diisi.';
+    }
+    if (!patientData.dpjp.trim()) {
+      newErrors.dpjp = 'DPJP wajib diisi.';
+    }
+    if (!patientData.dx.trim()) {
+      newErrors.dx = 'Diagnosis utama wajib diisi.';
+    }
+
+    const trimmedAge = String(patientData.age || '').trim();
+    if (!trimmedAge) {
+      newErrors.age = 'Usia wajib diisi.';
+    } else {
+      const ageNum = Number(trimmedAge);
+      if (isNaN(ageNum) || !/^\d+$/.test(trimmedAge) || ageNum < 0 || ageNum > 130) {
+        newErrors.age = 'Usia harus 0-130 thn.';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSave = () => {
-    onSave(patientData);
+    if (!validate()) return;
+    onSave({
+      name: patientData.name.trim(),
+      rm: patientData.rm.trim(),
+      age: patientData.age.trim(),
+      sex: patientData.sex,
+      ward: patientData.ward.trim(),
+      dpjp: patientData.dpjp.trim(),
+      dx: patientData.dx.trim(),
+      alergi: patientData.alergi.trim() || 'Tidak ada'
+    });
   };
 
   return (
@@ -41,58 +82,142 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
 
       <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3">
         <div className="space-y-3 bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-          <input
-            required value={patientData.name}
-            onChange={(e) => setPatientData({ ...patientData, name: e.target.value })}
-            placeholder="Nama Pasien"
-            className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors"
-          />
-          <div className="flex gap-2">
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase">Nama Pasien *</label>
             <input
-              value={patientData.rm}
-              onChange={(e) => setPatientData({ ...patientData, rm: e.target.value })}
-              placeholder="No RM (opsional)"
-              className="w-1/2 p-3 rounded-lg border border-slate-200 text-sm font-medium bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors"
+              value={patientData.name}
+              onChange={(e) => {
+                setPatientData({ ...patientData, name: e.target.value });
+                if (errors.name) setErrors({ ...errors, name: '' });
+              }}
+              placeholder="Nama Pasien"
+              className={cn(
+                'w-full mt-1 p-3 rounded-lg border text-sm font-medium bg-slate-50 focus:bg-white outline-none transition-colors',
+                errors.name ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+              )}
             />
-            <input
-              required value={patientData.age}
-              onChange={(e) => setPatientData({ ...patientData, age: e.target.value })}
-              type="text" inputMode="numeric" pattern="[0-9]*" placeholder="Usia"
-              className="w-1/4 p-3 rounded-lg border border-slate-200 text-sm font-medium bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors"
-            />
-            <select
-              value={patientData.sex}
-              onChange={(e) => setPatientData({ ...patientData, sex: e.target.value })}
-              className="w-1/4 p-3 rounded-lg border border-slate-200 text-sm font-medium bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors"
-            >
-              <option value="L">L</option>
-              <option value="P">P</option>
-            </select>
+            {errors.name && (
+              <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                <AlertCircle size={12} /> {errors.name}
+              </p>
+            )}
           </div>
-          <input
-            required value={patientData.ward}
-            onChange={(e) => setPatientData({ ...patientData, ward: e.target.value })}
-            placeholder="Bangsal / Ruangan"
-            className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors"
-          />
-          <input
-            required value={patientData.dpjp}
-            onChange={(e) => setPatientData({ ...patientData, dpjp: e.target.value })}
-            placeholder="DPJP"
-            className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors"
-          />
-          <input
-            required value={patientData.dx}
-            onChange={(e) => setPatientData({ ...patientData, dx: e.target.value })}
-            placeholder="Diagnosis Utama"
-            className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors"
-          />
-          <input
-            value={patientData.alergi}
-            onChange={(e) => setPatientData({ ...patientData, alergi: e.target.value })}
-            placeholder="Alergi Obat (opsional)"
-            className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors"
-          />
+
+          <div className="flex gap-2 items-start">
+            <div className="w-1/2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">No RM</label>
+              <input
+                value={patientData.rm}
+                onChange={(e) => setPatientData({ ...patientData, rm: e.target.value })}
+                placeholder="No RM (opsional)"
+                className="w-full mt-1 p-3 rounded-lg border border-slate-200 text-sm font-medium bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors"
+              />
+            </div>
+            <div className="w-1/4">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Usia *</label>
+              <input
+                value={patientData.age}
+                onChange={(e) => {
+                  setPatientData({ ...patientData, age: e.target.value });
+                  if (errors.age) setErrors({ ...errors, age: '' });
+                }}
+                type="text"
+                inputMode="numeric"
+                placeholder="Usia"
+                className={cn(
+                  'w-full mt-1 p-3 rounded-lg border text-sm font-medium bg-slate-50 focus:bg-white outline-none transition-colors',
+                  errors.age ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                )}
+              />
+              {errors.age && (
+                <p className="text-[10px] font-bold text-rose-600 mt-1 leading-tight">{errors.age}</p>
+              )}
+            </div>
+            <div className="w-1/4">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Kelamin</label>
+              <select
+                value={patientData.sex}
+                onChange={(e) => setPatientData({ ...patientData, sex: e.target.value })}
+                className="w-full mt-1 p-3 rounded-lg border border-slate-200 text-sm font-medium bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors"
+              >
+                <option value="L">L</option>
+                <option value="P">P</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase">Bangsal / Ruangan *</label>
+            <input
+              value={patientData.ward}
+              onChange={(e) => {
+                setPatientData({ ...patientData, ward: e.target.value });
+                if (errors.ward) setErrors({ ...errors, ward: '' });
+              }}
+              placeholder="Bangsal / Ruangan"
+              className={cn(
+                'w-full mt-1 p-3 rounded-lg border text-sm font-medium bg-slate-50 focus:bg-white outline-none transition-colors',
+                errors.ward ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+              )}
+            />
+            {errors.ward && (
+              <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                <AlertCircle size={12} /> {errors.ward}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase">DPJP *</label>
+            <input
+              value={patientData.dpjp}
+              onChange={(e) => {
+                setPatientData({ ...patientData, dpjp: e.target.value });
+                if (errors.dpjp) setErrors({ ...errors, dpjp: '' });
+              }}
+              placeholder="DPJP"
+              className={cn(
+                'w-full mt-1 p-3 rounded-lg border text-sm font-medium bg-slate-50 focus:bg-white outline-none transition-colors',
+                errors.dpjp ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+              )}
+            />
+            {errors.dpjp && (
+              <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                <AlertCircle size={12} /> {errors.dpjp}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase">Diagnosis Utama *</label>
+            <input
+              value={patientData.dx}
+              onChange={(e) => {
+                setPatientData({ ...patientData, dx: e.target.value });
+                if (errors.dx) setErrors({ ...errors, dx: '' });
+              }}
+              placeholder="Diagnosis Utama"
+              className={cn(
+                'w-full mt-1 p-3 rounded-lg border text-sm font-medium bg-slate-50 focus:bg-white outline-none transition-colors',
+                errors.dx ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+              )}
+            />
+            {errors.dx && (
+              <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                <AlertCircle size={12} /> {errors.dx}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase">Alergi Obat</label>
+            <input
+              value={patientData.alergi}
+              onChange={(e) => setPatientData({ ...patientData, alergi: e.target.value })}
+              placeholder="Alergi Obat (opsional)"
+              className="w-full mt-1 p-3 rounded-lg border border-slate-200 text-sm font-medium bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors"
+            />
+          </div>
         </div>
       </div>
     </motion.div>

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Sparkles, ChevronRight } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { setDoc, doc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 
-export function SettingsView({ doctorProfile, setDoctorProfile, patients, currentUserId, onDeletePatient }) {
+export function SettingsView({ doctorProfile, setDoctorProfile, patients, currentUserId, onDeletePatient, onStartTour }) {
   const [localProfile, setLocalProfile] = useState(doctorProfile);
   const [selectedPatientToDelete, setSelectedPatientToDelete] = useState('');
 
@@ -63,11 +63,11 @@ export function SettingsView({ doctorProfile, setDoctorProfile, patients, curren
 
       <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
         <h3 className="text-sm font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-50 pb-2">
-          Profil Dokter (Tester)
+          Profil Dokter
         </h3>
 
         <div>
-          <label className="text-[10px] font-bold text-slate-500 uppercase">Nama Lengkap</label>
+          <label className="text-[10px] font-bold text-slate-500 uppercase">Nama Lengkap &amp; Gelar</label>
           <input
             type="text"
             value={localProfile.name}
@@ -90,7 +90,7 @@ export function SettingsView({ doctorProfile, setDoctorProfile, patients, curren
         {isChanged && (
           <button
             onClick={handleSave}
-            className="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold text-sm shadow-md mt-2"
+            className="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold text-sm shadow-md mt-2 active:scale-[0.99] transition-transform"
           >
             Simpan Perubahan
           </button>
@@ -134,9 +134,22 @@ export function SettingsView({ doctorProfile, setDoctorProfile, patients, curren
       </div>
 
       <div className="space-y-3">
+        {onStartTour && (
+          <button
+            onClick={onStartTour}
+            className="w-full p-4 bg-emerald-50 hover:bg-emerald-100 rounded-xl border border-emerald-100 text-left font-bold text-emerald-800 shadow-sm flex items-center justify-between transition-colors"
+          >
+            <span className="flex items-center gap-2.5">
+              <Sparkles size={18} className="text-emerald-600" />
+              Lihat Panduan Singkat (Tur App)
+            </span>
+            <ChevronRight size={18} className="text-emerald-500" />
+          </button>
+        )}
+
         <button
           onClick={handleLogout}
-          className="w-full p-4 bg-rose-50 rounded-lg border border-rose-100 text-left font-bold text-rose-600 shadow-sm"
+          className="w-full p-4 bg-rose-50 rounded-xl border border-rose-100 text-left font-bold text-rose-600 shadow-sm transition-colors hover:bg-rose-100/70"
         >
           Keluar Akun
         </button>
