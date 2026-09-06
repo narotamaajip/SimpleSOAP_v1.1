@@ -4,7 +4,7 @@ import { PatientCardCompact } from '../components/PatientCardCompact';
 import { LogoIcon } from '../components/ui/Logo';
 
 export function DashboardView({ patients, stats, doctorProfile, onSelectPatient, onNavigateToPatients }) {
-  const pendingPatients = patients.filter((p) => !p.isFollowedUp && p.status !== 'PULANG');
+  const pendingPatients = patients.filter((p) => !p.isDeleted && !p.isFollowedUp && p.status !== 'PULANG');
 
   return (
     <motion.div

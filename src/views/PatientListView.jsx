@@ -51,12 +51,14 @@ export function PatientListView({
   };
 
   const uniqueRooms = useMemo(() => {
-    const rooms = patients.map((p) => p.ward).filter(Boolean);
+    const rooms = patients.filter((p) => !p.isDeleted).map((p) => p.ward).filter(Boolean);
     return [...new Set(rooms)].sort();
   }, [patients]);
 
   const filtered = useMemo(() => {
     return patients.filter((p) => {
+      if (p.isDeleted) return false;
+
       const matchesSearch =
         p.name.toLowerCase().includes((searchQuery || '').toLowerCase()) ||
         p.ward?.toLowerCase().includes((searchQuery || '').toLowerCase());

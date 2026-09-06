@@ -123,6 +123,7 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
             a: soap.a || '-',
             p: soap.p || '-',
             i: soap.i || '-',
+            vitals: soap.vitals,
             isDischarged
           }
         : null;
@@ -159,6 +160,29 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
     );
   };
 
+  const isDirty = () => {
+    if (isTourActive) return false;
+    return (
+      patientData.name.trim() !== '' ||
+      patientData.ward.trim() !== '' ||
+      patientData.dx.trim() !== '' ||
+      soap.s.trim() !== '' ||
+      soap.o.trim() !== '' ||
+      soap.a.trim() !== '' ||
+      Object.values(soap.vitals).some((v) => (v || '').trim() !== '')
+    );
+  };
+
+  const handleClose = () => {
+    if (isDirty()) {
+      if (window.confirm('Ada data pasien yang belum disimpan. Yakin ingin menutup form?')) {
+        onBack();
+      }
+    } else {
+      onBack();
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 50 }}
@@ -168,7 +192,7 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
     >
       {/* Header */}
       <div className="bg-white px-4 py-3 flex items-center justify-between border-b border-slate-100 sticky top-0 z-30 shadow-sm">
-        <button onClick={onBack} className="text-slate-400 p-1 rounded-full hover:bg-slate-50">
+        <button onClick={handleClose} className="text-slate-400 p-1 rounded-full hover:bg-slate-50">
           <X size={24} />
         </button>
         <h2 className="text-emerald-800 font-black text-sm tracking-tight uppercase">Pasien Baru</h2>

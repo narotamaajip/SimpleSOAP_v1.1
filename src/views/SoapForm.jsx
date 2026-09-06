@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X, FileText } from 'lucide-react';
+import { X, FileText, CheckCircle2 } from 'lucide-react';
 import { AccordionSection } from '../components/ui/AccordionSection';
 import { VitalInput } from '../components/ui/VitalInput';
 
@@ -25,6 +25,8 @@ const SOAP_TEMPLATES = {
 export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
   const [activeSection, setActiveSection] = useState('s');
   const [isDischarged, setIsDischarged] = useState(patient.status === 'PULANG');
+  const [hasDraftRestored, setHasDraftRestored] = useState(false);
+
   const [soap, setSoap] = useState({
     s: '',
     vitals: { td: '', nadi: '', rr: '', suhu: '', spo2: '', bb: '' },
@@ -34,37 +36,102 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
     i: ''
   });
 
+  const draftKey = `soap_draft_${patient.id}`;
+
+  // Load existing SOAP if editing, or restore local draft if creating new
   useEffect(() => {
     if (editingSoapId) {
-      const historyItem = patient.history.find((h) => h.id === editingSoapId);
+      const historyItem = (patient.history || []).find((h) => String(h.id) === String(editingSoapId));
       if (historyItem) {
         setSoap({
-          s: historyItem.s || '',
-          vitals: { td: '', nadi: '', rr: '', suhu: '', spo2: '', bb: '' },
-          o: historyItem.o || '',
-          a: historyItem.a || '',
-          p: historyItem.p || '',
-          i: historyItem.i || ''
+          s: historyItem.s && historyItem.s !== '-' ? historyItem.s : '',
+          vitals: historyItem.vitals || { td: '', nadi: '', rr: '', suhu: '', spo2: '', bb: '' },
+          o: historyItem.o && historyItem.o !== '-' ? historyItem.o : '',
+          a: historyItem.a && historyItem.a !== '-' ? historyItem.a : '',
+          p: historyItem.p && historyItem.p !== '-' ? historyItem.p : '',
+          i: historyItem.i && historyItem.i !== '-' ? historyItem.i : ''
         });
       }
+    } else {
+      // Check for saved draft in localStorage
+      try {
+        const savedDraft = localStorage.getItem(draftKey);
+        if (savedDraft) {
+          const parsed = JSON.parse(savedDraft);
+          if (parsed && parsed.soap) {
+            setSoap(parsed.soap);
+            if (parsed.isDischarged !== undefined) setIsDischarged(parsed.isDischarged);
+            setHasDraftRestored(true);
+            setTimeout(() => setHasDraftRestored(false), 4000);
+          }
+        }
+      } catch (e) {
+        console.warn('Error reading SOAP draft from localStorage:', e);
+      }
     }
-  }, [editingSoapId, patient]);
+  }, [editingSoapId, patient.id]);
+
+  // Autosave draft to localStorage when creating a new SOAP note
+  useEffect(() => {
+    if (editingSoapId) return; // do not autosave over drafts when editing old notes
+
+    const hasAnyContent =
+      soap.s.trim() ||
+      soap.o.trim() ||
+      soap.a.trim() ||
+      soap.p.trim() ||
+      soap.i.trim() ||
+      Object.values(soap.vitals).some((v) => (v || '').trim());
+
+    if (hasAnyContent) {
+      const timer = setTimeout(() => {
+        try {
+          localStorage.setItem(draftKey, JSON.stringify({ soap, isDischarged, timestamp: Date.now() }));
+        } catch (e) {
+          console.warn('Error saving SOAP draft:', e);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [soap, isDischarged, editingSoapId, draftKey]);
+
+  // Check if form is dirty (has unsaved modifications)
+  const isDirty = () => {
+    return (
+      soap.s.trim() !== '' ||
+      soap.o.trim() !== '' ||
+      soap.a.trim() !== '' ||
+      soap.p.trim() !== '' ||
+      soap.i.trim() !== '' ||
+      Object.values(soap.vitals).some((v) => (v || '').trim() !== '')
+    );
+  };
+
+  const handleClose = () => {
+    if (isDirty()) {
+      if (window.confirm('Ada draf catatan yang belum disimpan. Yakin ingin menutup form?')) {
+        onBack();
+      }
+    } else {
+      onBack();
+    }
+  };
 
   const copyPrevious = () => {
     if (patient.history && patient.history.length > 0) {
       const historyCopy = [...patient.history].sort((a, b) => b.id - a.id);
       const prevItem = editingSoapId
-        ? historyCopy.find((h) => h.id !== editingSoapId)
+        ? historyCopy.find((h) => String(h.id) !== String(editingSoapId))
         : historyCopy[0];
 
       if (prevItem) {
         setSoap({
-          s: prevItem.s || '',
-          vitals: { td: '', nadi: '', rr: '', suhu: '', spo2: '', bb: '' },
-          o: prevItem.o || '',
-          a: prevItem.a || '',
-          p: prevItem.p || '',
-          i: prevItem.i || ''
+          s: prevItem.s && prevItem.s !== '-' ? prevItem.s : '',
+          vitals: prevItem.vitals || { td: '', nadi: '', rr: '', suhu: '', spo2: '', bb: '' },
+          o: prevItem.o && prevItem.o !== '-' ? prevItem.o : '',
+          a: prevItem.a && prevItem.a !== '-' ? prevItem.a : '',
+          p: prevItem.p && prevItem.p !== '-' ? prevItem.p : '',
+          i: prevItem.i && prevItem.i !== '-' ? prevItem.i : ''
         });
         alert('SOAP sebelumnya berhasil disalin.');
       } else {
@@ -84,6 +151,19 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
   };
 
   const handleSave = () => {
+    const hasAnyContent =
+      soap.s.trim() ||
+      soap.o.trim() ||
+      soap.a.trim() ||
+      soap.p.trim() ||
+      soap.i.trim() ||
+      Object.values(soap.vitals).some((v) => (v || '').trim());
+
+    if (!hasAnyContent) {
+      alert('Mohon isi minimal salah satu komponen catatan SOAP atau tanda vital sebelum menyimpan.');
+      return;
+    }
+
     const { td, nadi, rr, suhu, spo2, bb } = soap.vitals;
     const vitalsStr = [
       td && `TD ${td} mmHg`,
@@ -100,12 +180,20 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
     if (vitalsStr) formattedO += vitalsStr + '.\n';
     if (soap.o) formattedO += soap.o;
 
+    // Clean up draft from localStorage upon successful save
+    try {
+      localStorage.removeItem(draftKey);
+    } catch (e) {
+      console.warn('Error clearing draft:', e);
+    }
+
     onSave({
-      s: soap.s || '-',
-      o: formattedO || '-',
-      a: soap.a || '-',
-      p: soap.p || '-',
-      i: soap.i || '-',
+      s: soap.s.trim() || '-',
+      o: formattedO.trim() || '-',
+      a: soap.a.trim() || '-',
+      p: soap.p.trim() || '-',
+      i: soap.i.trim() || '-',
+      vitals: soap.vitals,
       isDischarged
     });
   };
@@ -119,10 +207,12 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
     >
       {/* Header */}
       <div className="bg-white px-4 py-3 flex items-center justify-between border-b border-slate-100 sticky top-0 z-30 shadow-sm">
-        <button onClick={onBack} className="text-slate-400 p-1 rounded-full hover:bg-slate-50">
+        <button onClick={handleClose} className="text-slate-400 p-1 rounded-full hover:bg-slate-50">
           <X size={24} />
         </button>
-        <h2 className="text-emerald-800 font-black text-sm tracking-tight uppercase">Update SOAP</h2>
+        <h2 className="text-emerald-800 font-black text-sm tracking-tight uppercase">
+          {editingSoapId ? 'Edit Catatan SOAP' : 'Entry SOAP Baru'}
+        </h2>
         <button
           onClick={handleSave}
           className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform"
@@ -131,11 +221,21 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
         </button>
       </div>
 
+      {/* Restored Draft Banner */}
+      {hasDraftRestored && (
+        <div className="bg-emerald-50 border-b border-emerald-100 px-4 py-2 flex items-center gap-2 text-xs font-bold text-emerald-800 animate-fadeIn">
+          <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+          <span>Draf catatan belum tersimpan berhasil dipulihkan otomatis.</span>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto no-scrollbar pb-32">
         <div className="px-4 pt-5 pb-4">
-          <h1 className="text-2xl font-black text-slate-800">Entry SOAP Baru</h1>
+          <h1 className="text-2xl font-black text-slate-800">
+            {editingSoapId ? 'Koreksi SOAP' : 'Entry SOAP Baru'}
+          </h1>
           <p className="text-xs font-bold text-slate-500 mt-1">
-            {patient.name} (RM: {patient.rm}) - {patient.ward}
+            {patient.name} (RM: {patient.rm || '-'}) - {patient.ward}
           </p>
         </div>
 
@@ -278,7 +378,7 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
               Simpan SOAP
             </button>
             <button
-              onClick={onBack}
+              onClick={handleClose}
               className="w-full py-4 bg-white border-2 border-emerald-100 rounded-xl text-slate-700 font-bold text-sm shadow-sm active:scale-[0.98] transition-transform"
             >
               Kembali

@@ -8,11 +8,14 @@ import {
   addPatient,
   updatePatientProfile,
   deletePatient,
+  restorePatient,
+  permanentDeletePatient,
   addSoapEntry,
   updateSoapEntry
 } from './lib/patients';
 import { useAuth } from './hooks/useAuth';
 import { usePatients } from './hooks/usePatients';
+import { getFormattedDate, getFormattedTime } from './utils/timezone';
 
 // --- UI Components ---
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
@@ -63,7 +66,7 @@ export default function SoapApp() {
   );
 
   const stats = useMemo(() => {
-    const activePatients = patients.filter((p) => p.status !== 'PULANG');
+    const activePatients = patients.filter((p) => !p.isDeleted && p.status !== 'PULANG');
     return {
       total: activePatients.length,
       followedUp: activePatients.filter((p) => p.isFollowedUp).length,
@@ -76,7 +79,6 @@ export default function SoapApp() {
     if (authView === 'app' && isBrandNewDoctor && user && !loading) {
       const tourKey = `simplesoap_tour_done_${user.uid}`;
       if (!localStorage.getItem(tourKey)) {
-        // Start tour directly from Beranda
         setActiveTab('beranda');
         setSelectedPatientId(null);
         setIsAddingNewPatient(false);
@@ -217,24 +219,29 @@ export default function SoapApp() {
 
     try {
       if (editingSoapId) {
-        const updatedHistory = selectedPatient.history.map((item) =>
-          item.id === editingSoapId ? { ...item, ...soapData } : item
+        await updateSoapEntry(
+          selectedPatientId,
+          editingSoapId,
+          soapData,
+          selectedPatient.history,
+          isDischarged,
+          doctorProfile.name
         );
-        await updateSoapEntry(selectedPatientId, updatedHistory, isDischarged);
       } else {
         const soapEntry = {
           id: Date.now(),
-          date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-          time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+          date: getFormattedDate(),
+          time: getFormattedTime(),
           doctor: doctorProfile.name,
           ...soapData
         };
-        await addSoapEntry(selectedPatientId, soapEntry, isDischarged);
+        await addSoapEntry(selectedPatientId, soapEntry, isDischarged, user.uid);
       }
       setIsAddingSoap(false);
       setEditingSoapId(null);
     } catch (error) {
       console.error('Error updating SOAP:', error);
+      alert('Gagal menyimpan SOAP. Silakan periksa koneksi Anda.');
     }
   };
 
@@ -253,8 +260,8 @@ export default function SoapApp() {
       const initialSoapItem = initialSoap
         ? {
             id: Date.now(),
-            date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-            time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+            date: getFormattedDate(),
+            time: getFormattedTime(),
             doctor: doctorProfile.name,
             ...initialSoap
           }
@@ -278,7 +285,32 @@ export default function SoapApp() {
 
     const result = await deletePatient(patientId, patient, user.uid);
     if (result.success) {
-      alert('Data pasien berhasil dihapus.');
+      alert('Pasien berhasil dipindahkan ke Tempat Sampah.');
+      return true;
+    } else {
+      alert(result.message);
+      return false;
+    }
+  };
+
+  const handleRestorePatient = async (patientId) => {
+    const result = await restorePatient(patientId, user.uid);
+    if (result.success) {
+      alert('Pasien berhasil dipulihkan ke daftar aktif.');
+      return true;
+    } else {
+      alert(result.message);
+      return false;
+    }
+  };
+
+  const handlePermanentDeletePatient = async (patientId) => {
+    const patient = patients.find((p) => p.id === patientId);
+    if (!patient) return false;
+
+    const result = await permanentDeletePatient(patientId, patient, user.uid);
+    if (result.success) {
+      alert('Data pasien berhasil dimusnahkan secara permanen.');
       return true;
     } else {
       alert(result.message);
@@ -351,7 +383,7 @@ export default function SoapApp() {
           user={user}
           onComplete={(profile) => {
             setDoctorProfile(profile);
-            setIsBrandNewDoctor(true); // Signal brand new doctor registration for onboarding tour
+            setIsBrandNewDoctor(true);
             if (!user.emailVerified) {
               setAuthView('unverified');
             } else {
@@ -422,6 +454,7 @@ export default function SoapApp() {
                 setEditingSoapId(historyId);
                 setIsAddingSoap(true);
               }}
+              onDeletePatient={handleDeletePatient}
             />
           ) : (
             <div className="h-full flex flex-col">
@@ -476,6 +509,8 @@ export default function SoapApp() {
                   patients={patients}
                   currentUserId={user?.uid}
                   onDeletePatient={handleDeletePatient}
+                  onRestorePatient={handleRestorePatient}
+                  onPermanentDeletePatient={handlePermanentDeletePatient}
                   onStartTour={startTourManually}
                 />
               )}

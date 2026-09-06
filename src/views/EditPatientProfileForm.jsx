@@ -60,6 +60,29 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
     });
   };
 
+  const isDirty = () => {
+    return (
+      patientData.name !== (patient.name || '') ||
+      patientData.rm !== (patient.rm || '') ||
+      patientData.age !== String(patient.age ?? '') ||
+      patientData.sex !== (patient.sex || 'L') ||
+      patientData.ward !== (patient.ward || '') ||
+      patientData.dpjp !== (patient.dpjp || '') ||
+      patientData.dx !== (patient.dx || '') ||
+      patientData.alergi !== (patient.alergi || '')
+    );
+  };
+
+  const handleClose = () => {
+    if (isDirty()) {
+      if (window.confirm('Ada perubahan profil yang belum disimpan. Yakin ingin keluar?')) {
+        onBack();
+      }
+    } else {
+      onBack();
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 50 }}
@@ -68,7 +91,7 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
       className="flex-1 flex flex-col h-full bg-[#f9fcf9] overflow-hidden absolute inset-0 z-50"
     >
       <div className="bg-white px-4 py-3 flex items-center justify-between border-b border-slate-100 sticky top-0 z-30 shadow-sm">
-        <button onClick={onBack} className="text-slate-400 p-1 rounded-full hover:bg-slate-50">
+        <button onClick={handleClose} className="text-slate-400 p-1 rounded-full hover:bg-slate-50">
           <X size={24} />
         </button>
         <h2 className="text-emerald-800 font-black text-sm tracking-tight uppercase">Edit Pasien</h2>
