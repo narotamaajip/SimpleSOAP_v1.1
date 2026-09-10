@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Only authenticated users (logged-in doctors) can read and write files.
+    // Removes the 30-day trial expiration date.
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
