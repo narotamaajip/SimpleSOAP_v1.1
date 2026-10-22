@@ -1,10 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Trash2, Sparkles, ChevronRight, RotateCcw, AlertOctagon, UserX } from 'lucide-react';
-import { signOut, deleteUser } from 'firebase/auth';
+import {
+  signOut,
+  deleteUser,
+  EmailAuthProvider,
+  GoogleAuthProvider,
+  reauthenticateWithCredential,
+  reauthenticateWithPopup
+} from 'firebase/auth';
 import { setDoc, doc, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
+import { GlassSelect } from '../components/ui/GlassSelect';
 
 export function SettingsView({
   doctorProfile,
@@ -35,6 +43,16 @@ export function SettingsView({
   const trashedPatients = patients.filter(
     (p) => p.isDeleted && (!p.ownerId || p.ownerId === currentUserId)
   );
+
+  const patientOptions = useMemo(() => {
+    return [
+      { value: '', label: '-- Pilih Pasien --' },
+      ...activePatients.map((p) => ({
+        value: p.id,
+        label: `${p.name} ${p.rm ? `(RM: ${p.rm})` : ''} - ${p.ward}`
+      }))
+    ];
+  }, [activePatients]);
 
   const handleLogout = async () => {
     if (window.confirm('Yakin ingin keluar dari akun?')) {
@@ -100,9 +118,35 @@ export function SettingsView({
       try {
         const user = auth.currentUser;
         if (user) {
-          // Delete doctor profile doc
+          const lastSignInMs = user.metadata?.lastSignInTime
+            ? new Date(user.metadata.lastSignInTime).getTime()
+            : 0;
+          const isStaleSession = Date.now() - lastSignInMs > 4 * 60 * 1000;
+
+          if (isStaleSession) {
+            const isGoogle = user.providerData?.some((p) => p.providerId === 'google.com');
+            if (isGoogle) {
+              await reauthenticateWithPopup(user, new GoogleAuthProvider());
+            } else if (user.email) {
+              const pwd = window.prompt(
+                'Demi keamanan, masukkan kata sandi akun Anda untuk mengonfirmasi penghapusan akun:'
+              );
+              if (!pwd) {
+                setIsDeletingAccount(false);
+                return;
+              }
+              const credential = EmailAuthProvider.credential(user.email, pwd);
+              await reauthenticateWithCredential(user, credential);
+            }
+          }
+
           await deleteDoc(doc(db, 'doctors', user.uid));
-          // Delete Firebase auth user
+          try {
+            localStorage.removeItem(`simplesoap_doctor_profile_${user.uid}`);
+            localStorage.removeItem(`simplesoap_tour_done_${user.uid}`);
+          } catch (e) {
+            console.warn('Cache cleanup notice:', e);
+          }
           await deleteUser(user);
           alert('Akun Anda berhasil dihapus.');
         }
@@ -111,7 +155,7 @@ export function SettingsView({
         if (err.code === 'auth/requires-recent-login') {
           alert('Demi keamanan, silakan keluar akun dan masuk kembali sebelum melakukan penghapusan akun.');
         } else {
-          alert(getFriendlyErrorMessage(err, 'Gagal menghapus akun. Silakan coba lagi nanti.'));
+          alert(getFriendlyErrorMessage(err, 'Gagal menghapus akun. Pastikan kata sandi benar dan coba lagi.'));
         }
       } finally {
         setIsDeletingAccount(false);
@@ -121,44 +165,49 @@ export function SettingsView({
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="p-6 space-y-6 pb-24 overflow-y-auto no-scrollbar"
+      initial={{ opacity: 0, x: 12 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -12 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.8 }}
+      className="p-5 space-y-5 pb-28 overflow-y-auto no-scrollbar"
     >
-      <h2 className="text-xl font-bold text-slate-800">Pengaturan</h2>
+      <h2 className="text-xl font-extrabold text-slate-800 tracking-tight">Pengaturan</h2>
 
       {/* Profile Section */}
-      <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
-        <h3 className="text-sm font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-50 pb-2">
+      <div className="glass-card p-5 rounded-[22px] space-y-4">
+        <h3 className="text-xs font-extrabold text-cyan-900 uppercase tracking-widest border-b border-white/75 pb-2.5">
           Profil Dokter
         </h3>
 
         <div>
-          <label className="text-[10px] font-bold text-slate-500 uppercase">Nama Lengkap &amp; Gelar</label>
+          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+            Nama Lengkap &amp; Gelar
+          </label>
           <input
             type="text"
             value={localProfile.name}
             onChange={(e) => setLocalProfile({ ...localProfile, name: e.target.value })}
-            className="w-full mt-1 p-3 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-sm font-bold text-slate-800 outline-none focus:border-emerald-500"
+            className="w-full mt-1 p-3 rounded-2xl glass-input text-sm font-bold text-slate-800"
           />
         </div>
 
         <div>
-          <label className="text-[10px] font-bold text-slate-500 uppercase">Kredensial / SIP / STR</label>
+          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+            Kredensial / SIP / STR
+          </label>
           <input
             type="text"
             placeholder="Contoh: Sp.PD / SIP: 12345"
             value={localProfile.credentials}
             onChange={(e) => setLocalProfile({ ...localProfile, credentials: e.target.value })}
-            className="w-full mt-1 p-3 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-sm font-bold text-slate-800 outline-none focus:border-emerald-500"
+            className="w-full mt-1 p-3 rounded-2xl glass-input text-sm font-bold text-slate-800"
           />
         </div>
 
         {isChanged && (
           <button
             onClick={handleSave}
-            className="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold text-sm shadow-md mt-2 active:scale-[0.99] transition-transform"
+            className="w-full py-3 glass-btn-primary rounded-2xl font-bold text-sm mt-2"
           >
             Simpan Perubahan
           </button>
@@ -166,35 +215,32 @@ export function SettingsView({
       </div>
 
       {/* Patient Soft Delete Section */}
-      <div className="bg-amber-50/70 p-5 rounded-xl border border-amber-100 shadow-sm space-y-4">
-        <h3 className="text-sm font-black text-amber-800 uppercase tracking-widest border-b border-amber-200/50 pb-2 flex items-center gap-2">
-          <Trash2 size={16} /> Kelola Pasien (Pindah ke Sampah)
+      <div className="glass-card p-5 rounded-[22px] space-y-4 relative">
+        <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-widest border-b border-white/75 pb-2.5 flex items-center gap-2">
+          <Trash2 size={15} className="text-amber-600" /> Kelola Pasien (Pindah ke Sampah)
         </h3>
 
         <div>
-          <label className="text-[10px] font-bold text-amber-700 uppercase">Pilih Pasien Aktif</label>
-          <div className="flex flex-col gap-2.5 mt-1">
-            <select
+          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
+            Pilih Pasien Aktif
+          </label>
+          <div className="flex flex-col gap-2.5">
+            <GlassSelect
               value={selectedPatientToDelete}
-              onChange={(e) => setSelectedPatientToDelete(e.target.value)}
-              className="w-full p-3 rounded-lg border border-amber-200 bg-white text-sm font-bold text-slate-800 outline-none focus:border-amber-500 truncate"
-            >
-              <option value="">-- Pilih Pasien --</option>
-              {activePatients.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} {p.rm ? `(RM: ${p.rm})` : ''} - {p.ward}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedPatientToDelete(val)}
+              options={patientOptions}
+              placeholder="-- Pilih Pasien --"
+              buttonClassName="py-3 rounded-2xl text-xs"
+            />
             <button
               onClick={handleSoftDelete}
               disabled={!selectedPatientToDelete}
-              className="w-full py-3 bg-amber-600 text-white rounded-lg font-bold text-xs shadow-sm disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99] transition-transform"
+              className="w-full py-3 glass-btn-secondary text-amber-800 hover:text-amber-900 rounded-2xl font-bold text-xs disabled:opacity-45 disabled:cursor-not-allowed"
             >
               Pindahkan ke Tempat Sampah
             </button>
           </div>
-          <p className="text-[10px] text-amber-700/80 font-medium mt-2 leading-relaxed">
+          <p className="text-[11px] text-slate-500 font-medium mt-2.5 leading-relaxed">
             Pasien akan disembunyikan dari daftar utama namun rekam medis tetap tersimpan aman di folder Tempat Sampah untuk mencegah risiko salah hapus.
           </p>
         </div>
@@ -202,10 +248,10 @@ export function SettingsView({
 
       {/* Trashed Patients (Recovery & Permanent Delete) */}
       {trashedPatients.length > 0 && (
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-          <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest border-b border-slate-100 pb-2 flex items-center justify-between">
+        <div className="glass-card p-5 rounded-[22px] space-y-3.5">
+          <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-widest border-b border-white/75 pb-2.5 flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <RotateCcw size={16} className="text-slate-500" />
+              <RotateCcw size={15} className="text-cyan-700" />
               Tempat Sampah Pasien ({trashedPatients.length})
             </span>
           </h3>
@@ -214,24 +260,24 @@ export function SettingsView({
             {trashedPatients.map((p) => (
               <div
                 key={p.id}
-                className="p-3 bg-slate-50 rounded-lg border border-slate-200/80 flex items-center justify-between gap-3"
+                className="p-3.5 glass-subpanel rounded-2xl flex items-center justify-between gap-3"
               >
                 <div className="min-w-0">
-                  <p className="text-xs font-black text-slate-800 truncate">{p.name}</p>
-                  <p className="text-[10px] font-mono text-slate-400">
+                  <p className="text-xs font-extrabold text-slate-800 truncate">{p.name}</p>
+                  <p className="text-[10px] font-mono text-slate-500 mt-0.5">
                     RM: {p.rm || '-'} • {p.ward}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => handleRestore(p.id, p.name)}
-                    className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold hover:bg-emerald-100 transition-colors"
+                    className="px-3 py-1.5 glass-btn-secondary text-teal-800 rounded-xl text-[10px] font-bold"
                   >
                     Pulihkan
                   </button>
                   <button
                     onClick={() => handlePermanentDelete(p.id, p.name)}
-                    className="px-2.5 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[10px] font-bold hover:bg-rose-100 transition-colors"
+                    className="px-3 py-1.5 bg-rose-500/12 border border-rose-200/80 text-rose-700 rounded-xl text-[10px] font-bold active:scale-95 transition-transform"
                   >
                     Musnahkan
                   </button>
@@ -247,36 +293,36 @@ export function SettingsView({
         {onStartTour && (
           <button
             onClick={onStartTour}
-            className="w-full p-4 bg-emerald-50 hover:bg-emerald-100 rounded-xl border border-emerald-100 text-left font-bold text-emerald-800 shadow-sm flex items-center justify-between transition-colors"
+            className="w-full p-4 glass-card-interactive rounded-2xl text-left font-bold text-slate-800 flex items-center justify-between text-sm"
           >
             <span className="flex items-center gap-2.5">
-              <Sparkles size={18} className="text-emerald-600" />
+              <Sparkles size={17} className="text-cyan-700" />
               Lihat Panduan Singkat (Tur App)
             </span>
-            <ChevronRight size={18} className="text-emerald-500" />
+            <ChevronRight size={17} className="text-slate-400" />
           </button>
         )}
 
         <button
           onClick={handleLogout}
-          className="w-full p-4 bg-slate-100 hover:bg-slate-200 rounded-xl border border-slate-200 text-left font-bold text-slate-700 shadow-sm transition-colors"
+          className="w-full p-4 glass-btn-secondary rounded-2xl text-left font-bold text-slate-700 text-sm"
         >
           Keluar Akun
         </button>
       </div>
 
       {/* Danger Zone: Account Deletion (Google Play Compliance) */}
-      <div className="bg-rose-50 p-5 rounded-xl border border-rose-100 space-y-3">
-        <h3 className="text-xs font-black text-rose-800 uppercase tracking-widest flex items-center gap-1.5">
+      <div className="glass-card p-5 rounded-[22px] space-y-3 border-rose-200/60">
+        <h3 className="text-xs font-extrabold text-rose-700 uppercase tracking-widest flex items-center gap-1.5">
           <AlertOctagon size={14} className="text-rose-600" /> Zona Bahaya: Hapus Akun Pengguna
         </h3>
-        <p className="text-[11px] text-rose-600 font-medium leading-relaxed">
+        <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
           Sesuai ketentuan Google Play Store, Anda berhak menghapus akun dan data profil dokter Anda secara mandiri dari cloud server SimpleSOAP.
         </p>
         <button
           onClick={handleDeleteAccount}
           disabled={isDeletingAccount}
-          className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs shadow-sm flex items-center justify-center gap-2 active:scale-95 transition-all"
+          className="w-full py-3 bg-rose-600/90 hover:bg-rose-600 text-white border border-white/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_6px_16px_-3px_rgba(225,29,72,0.25)] rounded-2xl font-bold text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
         >
           <UserX size={15} />
           {isDeletingAccount ? 'Memproses Penghapusan...' : 'Hapus Akun Dokter Saya'}

@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { X, AlertCircle } from 'lucide-react';
 import { AccordionSection } from '../components/ui/AccordionSection';
 import { VitalInput } from '../components/ui/VitalInput';
+import { GlassSelect } from '../components/ui/GlassSelect';
+import { AmbientBackground } from '../components/ui/AmbientBackground';
 import { cn } from '../utils/cn';
 
 const SOAP_TEMPLATES = {
@@ -22,6 +24,11 @@ const SOAP_TEMPLATES = {
     p: 'O2 nasal kanul 3 lpm.\nFurosemide 1 ampul extra IV.\nEvaluasi produksi urin dan Ro Thorax.'
   }
 };
+
+const SEX_OPTIONS = [
+  { value: 'L', label: 'L (Pria)' },
+  { value: 'P', label: 'P (Wanita)' }
+];
 
 export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }) {
   const [activeSection, setActiveSection] = useState('data');
@@ -118,11 +125,12 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
     const initialSoap =
       soap.s || formattedO || soap.a || soap.p || soap.i || isDischarged
         ? {
-            s: soap.s || '-',
-            o: formattedO || '-',
-            a: soap.a || '-',
-            p: soap.p || '-',
-            i: soap.i || '-',
+            s: soap.s.trim() || '-',
+            o: formattedO.trim() || '-',
+            rawO: soap.o.trim(),
+            a: soap.a.trim() || '-',
+            p: soap.p.trim() || '-',
+            i: soap.i.trim() || '-',
             vitals: soap.vitals,
             isDischarged
           }
@@ -185,30 +193,33 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 50 }}
-      className="flex-1 flex flex-col h-full bg-[#f9fcf9] overflow-hidden absolute inset-0 z-50"
+      initial={{ opacity: 0, y: 24, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 24, scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.8 }}
+      className="flex-1 flex flex-col h-full liquid-canvas overflow-hidden absolute inset-0 z-50"
     >
+      <AmbientBackground />
+
       {/* Header */}
-      <div className="bg-white px-4 py-3 flex items-center justify-between border-b border-slate-100 sticky top-0 z-30 shadow-sm">
-        <button onClick={handleClose} className="text-slate-400 p-1 rounded-full hover:bg-slate-50">
-          <X size={24} />
+      <div className="glass-bar px-4 py-3 flex items-center justify-between border-b sticky top-0 z-30">
+        <button onClick={handleClose} className="text-slate-600 p-1.5 rounded-xl glass-btn-secondary">
+          <X size={20} />
         </button>
-        <h2 className="text-emerald-800 font-black text-sm tracking-tight uppercase">Pasien Baru</h2>
+        <h2 className="text-slate-800 font-extrabold text-sm tracking-tight uppercase">Pasien Baru</h2>
         <button
           id="tour-save-patient-btn-header"
           onClick={handleSave}
-          className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform"
+          className="glass-btn-primary px-4 py-1.5 rounded-xl text-xs font-bold"
         >
           Simpan
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar pb-32">
+      <div className="flex-1 overflow-y-auto no-scrollbar pb-32 z-10">
         <div className="px-4 pt-5 pb-4">
-          <h1 className="text-2xl font-black text-slate-800">Entry Pasien &amp; SOAP</h1>
-          <p className="text-xs font-bold text-slate-500 mt-1">Isi data pasien dan follow-up awal</p>
+          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Entry Pasien &amp; SOAP</h1>
+          <p className="text-xs font-semibold text-slate-500 mt-1">Isi data pasien dan follow-up awal</p>
         </div>
 
         <div className="px-4 space-y-3 pb-8">
@@ -229,8 +240,8 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
                   }}
                   placeholder="Nama Pasien *"
                   className={cn(
-                    'w-full p-3 rounded-lg border text-sm font-medium bg-white outline-none transition-colors',
-                    errors.name ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                    'w-full p-3 rounded-2xl glass-input text-sm font-medium text-slate-800',
+                    errors.name && 'border-rose-400 bg-rose-50/40'
                   )}
                 />
                 {errors.name && (
@@ -241,15 +252,15 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
               </div>
 
               <div className="flex gap-2 items-start">
-                <div className="w-1/2">
+                <div className="w-[44%]">
                   <input
                     value={patientData.rm}
                     onChange={(e) => setPatientData({ ...patientData, rm: e.target.value })}
                     placeholder="No RM (opsional)"
-                    className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-white outline-none focus:border-emerald-500"
+                    className="w-full p-3 rounded-2xl glass-input text-sm font-medium text-slate-800"
                   />
                 </div>
-                <div className="w-1/4">
+                <div className="w-[26%]">
                   <input
                     value={patientData.age}
                     onChange={(e) => {
@@ -260,23 +271,21 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
                     inputMode="numeric"
                     placeholder="Usia *"
                     className={cn(
-                      'w-full p-3 rounded-lg border text-sm font-medium bg-white outline-none transition-colors',
-                      errors.age ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                      'w-full p-3 rounded-2xl glass-input text-sm font-medium text-slate-800',
+                      errors.age && 'border-rose-400 bg-rose-50/40'
                     )}
                   />
                   {errors.age && (
                     <p className="text-[10px] font-bold text-rose-600 mt-1 leading-tight">{errors.age}</p>
                   )}
                 </div>
-                <div className="w-1/4">
-                  <select
+                <div className="w-[30%]">
+                  <GlassSelect
                     value={patientData.sex}
-                    onChange={(e) => setPatientData({ ...patientData, sex: e.target.value })}
-                    className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-white outline-none focus:border-emerald-500"
-                  >
-                    <option value="L">L</option>
-                    <option value="P">P</option>
-                  </select>
+                    onChange={(val) => setPatientData({ ...patientData, sex: val })}
+                    options={SEX_OPTIONS}
+                    buttonClassName="py-3 rounded-2xl text-sm"
+                  />
                 </div>
               </div>
 
@@ -289,8 +298,8 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
                   }}
                   placeholder="Bangsal / Ruangan *"
                   className={cn(
-                    'w-full p-3 rounded-lg border text-sm font-medium bg-white outline-none transition-colors',
-                    errors.ward ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                    'w-full p-3 rounded-2xl glass-input text-sm font-medium text-slate-800',
+                    errors.ward && 'border-rose-400 bg-rose-50/40'
                   )}
                 />
                 {errors.ward && (
@@ -309,8 +318,8 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
                   }}
                   placeholder="DPJP *"
                   className={cn(
-                    'w-full p-3 rounded-lg border text-sm font-medium bg-white outline-none transition-colors',
-                    errors.dpjp ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                    'w-full p-3 rounded-2xl glass-input text-sm font-medium text-slate-800',
+                    errors.dpjp && 'border-rose-400 bg-rose-50/40'
                   )}
                 />
                 {errors.dpjp && (
@@ -329,8 +338,8 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
                   }}
                   placeholder="Diagnosis Utama *"
                   className={cn(
-                    'w-full p-3 rounded-lg border text-sm font-medium bg-white outline-none transition-colors',
-                    errors.dx ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                    'w-full p-3 rounded-2xl glass-input text-sm font-medium text-slate-800',
+                    errors.dx && 'border-rose-400 bg-rose-50/40'
                   )}
                 />
                 {errors.dx && (
@@ -345,13 +354,14 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
                   value={patientData.alergi}
                   onChange={(e) => setPatientData({ ...patientData, alergi: e.target.value })}
                   placeholder="Alergi Obat (opsional)"
-                  className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium bg-white outline-none focus:border-emerald-500"
+                  className="w-full p-3 rounded-2xl glass-input text-sm font-medium text-slate-800"
                 />
               </div>
 
               <button
+                type="button"
                 onClick={handleSaveOnly}
-                className="w-full py-2.5 bg-slate-800 text-white font-bold rounded-lg mt-2 text-xs shadow-sm active:scale-[0.98] transition-transform"
+                className="w-full py-2.5 glass-btn-secondary text-slate-800 font-bold rounded-2xl mt-2 text-xs"
               >
                 Simpan Data Pasien Saja
               </button>
@@ -360,16 +370,18 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
 
           {/* Template Cepat */}
           <div className="pt-2">
-            <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-2">TEMPLATE CEPAT SOAP</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+              TEMPLATE CEPAT SOAP
+            </p>
             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-              <button onClick={() => applyTemplate('stabil')} className="px-4 py-2 rounded-lg bg-emerald-50/50 text-slate-600 text-xs font-bold whitespace-nowrap border border-emerald-100 shadow-sm">Pasien Stabil</button>
-              <button onClick={() => applyTemplate('membaik')} className="px-4 py-2 rounded-lg bg-emerald-50/50 text-slate-600 text-xs font-bold whitespace-nowrap border border-emerald-100 shadow-sm">Pasien Membaik</button>
-              <button onClick={() => applyTemplate('sesak')} className="px-4 py-2 rounded-lg bg-emerald-50/50 text-slate-600 text-xs font-bold whitespace-nowrap border border-emerald-100 shadow-sm">Pasien Sesak</button>
+              <button type="button" onClick={() => applyTemplate('stabil')} className="px-3.5 py-2 rounded-2xl glass-btn-secondary text-slate-700 text-xs font-semibold whitespace-nowrap">Pasien Stabil</button>
+              <button type="button" onClick={() => applyTemplate('membaik')} className="px-3.5 py-2 rounded-2xl glass-btn-secondary text-slate-700 text-xs font-semibold whitespace-nowrap">Pasien Membaik</button>
+              <button type="button" onClick={() => applyTemplate('sesak')} className="px-3.5 py-2 rounded-2xl glass-btn-secondary text-slate-700 text-xs font-semibold whitespace-nowrap">Pasien Sesak</button>
             </div>
           </div>
 
           <AccordionSection id="s" title="(S) Subjective" isActive={activeSection === 's'} onClick={() => setActiveSection(activeSection === 's' ? null : 's')}>
-            <textarea className="w-full p-3 rounded-md border border-emerald-100 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm font-medium resize-none bg-white" rows={4} placeholder="Catatan keluhan tambahan pasien..." value={soap.s} onChange={(e) => setSoap({ ...soap, s: e.target.value })} />
+            <textarea className="w-full p-3.5 rounded-2xl glass-input text-sm font-medium resize-none text-slate-800" rows={4} placeholder="Catatan keluhan tambahan pasien..." value={soap.s} onChange={(e) => setSoap({ ...soap, s: e.target.value })} />
           </AccordionSection>
 
           <AccordionSection id="o" title="(O) Objective" isActive={activeSection === 'o'} onClick={() => setActiveSection(activeSection === 'o' ? null : 'o')}>
@@ -383,28 +395,28 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
                 <VitalInput label="BB (kg)" placeholder="65.0" value={soap.vitals.bb} onChange={(v) => setSoap({ ...soap, vitals: { ...soap.vitals, bb: v } })} />
               </div>
               <div>
-                <p className="text-[10px] font-bold text-slate-800 mb-1.5">Pemeriksaan Fisik / Penunjang</p>
-                <textarea className="w-full p-3 rounded-md border border-emerald-100 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm font-medium resize-none bg-white" rows={4} placeholder="Catatan pemeriksaan fisik dan hasil lab/radiologi..." value={soap.o} onChange={(e) => setSoap({ ...soap, o: e.target.value })} />
+                <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Pemeriksaan Fisik / Penunjang</p>
+                <textarea className="w-full p-3.5 rounded-2xl glass-input text-sm font-medium resize-none text-slate-800" rows={4} placeholder="Catatan pemeriksaan fisik dan hasil lab/radiologi..." value={soap.o} onChange={(e) => setSoap({ ...soap, o: e.target.value })} />
               </div>
             </div>
           </AccordionSection>
 
           <AccordionSection id="a" title="(A) Assessment" isActive={activeSection === 'a'} onClick={() => setActiveSection(activeSection === 'a' ? null : 'a')}>
-            <textarea className="w-full p-3 rounded-md border border-emerald-100 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm font-medium resize-none bg-white" rows={4} placeholder="Diagnosis atau masalah klinis saat ini..." value={soap.a} onChange={(e) => setSoap({ ...soap, a: e.target.value })} />
+            <textarea className="w-full p-3.5 rounded-2xl glass-input text-sm font-medium resize-none text-slate-800" rows={4} placeholder="Diagnosis atau masalah klinis saat ini..." value={soap.a} onChange={(e) => setSoap({ ...soap, a: e.target.value })} />
           </AccordionSection>
 
           <AccordionSection id="p" title="(P) Plan" isActive={activeSection === 'p'} onClick={() => setActiveSection(activeSection === 'p' ? null : 'p')}>
-            <textarea className="w-full p-3 rounded-md border border-emerald-100 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm font-medium resize-none bg-white" rows={4} placeholder="Rencana tatalaksana, terapi, dan edukasi..." value={soap.p} onChange={(e) => setSoap({ ...soap, p: e.target.value })} />
+            <textarea className="w-full p-3.5 rounded-2xl glass-input text-sm font-medium resize-none text-slate-800" rows={4} placeholder="Rencana tatalaksana, terapi, dan edukasi..." value={soap.p} onChange={(e) => setSoap({ ...soap, p: e.target.value })} />
           </AccordionSection>
 
           <AccordionSection id="i" title="(I) Instruction" isActive={activeSection === 'i'} onClick={() => setActiveSection(activeSection === 'i' ? null : 'i')}>
-            <textarea className="w-full p-3 rounded-md border border-emerald-100 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm font-medium resize-none bg-white" rows={4} placeholder="Instruksi spesifik kepada pasien/perawat..." value={soap.i} onChange={(e) => setSoap({ ...soap, i: e.target.value })} />
+            <textarea className="w-full p-3.5 rounded-2xl glass-input text-sm font-medium resize-none text-slate-800" rows={4} placeholder="Instruksi spesifik kepada pasien/perawat..." value={soap.i} onChange={(e) => setSoap({ ...soap, i: e.target.value })} />
           </AccordionSection>
 
           {/* BLPL Checkbox */}
-          <div className="pt-2 flex items-center gap-3 bg-emerald-50 p-3 rounded-lg border border-emerald-100">
-            <input type="checkbox" id="blpl_new" checked={isDischarged} onChange={(e) => setIsDischarged(e.target.checked)} className="w-5 h-5 text-emerald-600 rounded border-emerald-300 focus:ring-emerald-500" />
-            <label htmlFor="blpl_new" className="text-sm font-bold text-slate-800">Tandai Pasien Boleh Pulang (BLPL)</label>
+          <div className="flex items-center gap-3 glass-card p-4 rounded-2xl">
+            <input type="checkbox" id="blpl_new" checked={isDischarged} onChange={(e) => setIsDischarged(e.target.checked)} className="w-5 h-5 text-cyan-700 rounded-md border-slate-300 focus:ring-cyan-600 cursor-pointer" />
+            <label htmlFor="blpl_new" className="text-sm font-bold text-slate-800 cursor-pointer select-none">Tandai Pasien Boleh Pulang (BLPL)</label>
           </div>
 
           {/* Action Buttons */}
@@ -412,11 +424,11 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
             <button
               id="tour-save-patient-btn"
               onClick={handleSave}
-              className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-sm shadow-lg shadow-emerald-600/30 active:scale-[0.98] transition-transform"
+              className="w-full py-4 glass-btn-primary rounded-2xl font-bold text-sm"
             >
               Simpan Pasien &amp; SOAP
             </button>
-            <button onClick={onBack} className="w-full py-4 bg-white border-2 border-emerald-100 rounded-xl text-slate-700 font-bold text-sm shadow-sm active:scale-[0.98] transition-transform">
+            <button onClick={onBack} className="w-full py-4 glass-btn-secondary rounded-2xl text-slate-700 font-bold text-sm">
               Kembali
             </button>
           </div>

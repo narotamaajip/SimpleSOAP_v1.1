@@ -2,10 +2,11 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Only authenticated users (logged-in doctors) can read and write files.
-    // Removes the 30-day trial expiration date.
+    // SimpleSOAP only uses Cloud Firestore (no file uploads).
+    // Lock Cloud Storage completely to prevent unauthorized storage abuse,
+    // while removing the 30-day test mode expiration warning.
     match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }

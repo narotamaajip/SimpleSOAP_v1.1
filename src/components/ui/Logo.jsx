@@ -1,8 +1,8 @@
 import React from 'react';
 
 /**
- * LogoIcon: Renders the SimpleSOAP smartphone + medical cross + data lines mark.
- * Scalable via className (e.g., "w-6 h-6", "h-8 w-auto", etc.)
+ * LogoIcon: Renders the SimpleSOAP smartphone + medical cross + data lines mark
+ * in muted clinical teal/blue tones.
  */
 export function LogoIcon({ className = "w-6 h-6", ...props }) {
   return (
@@ -20,9 +20,9 @@ export function LogoIcon({ className = "w-6 h-6", ...props }) {
         y="40"
         width="224"
         height="400"
-        rx="36"
+        rx="40"
         fill="none"
-        stroke="#10B981"
+        stroke="#0e7490"
         strokeWidth="24"
       />
 
@@ -32,15 +32,15 @@ export function LogoIcon({ className = "w-6 h-6", ...props }) {
         y1="68"
         x2="286"
         y2="68"
-        stroke="#10B981"
+        stroke="#0e7490"
         strokeWidth="12"
         strokeLinecap="round"
       />
 
-      {/* Sharp-edged Medical Cross (+) in medium-dark emerald */}
+      {/* Clinical Cross (+) in muted teal-blue */}
       <path
         d="M256 164v100M206 214h100"
-        stroke="#059669"
+        stroke="#0f766e"
         strokeWidth="44"
         strokeLinecap="square"
         strokeLinejoin="miter"
@@ -52,7 +52,7 @@ export function LogoIcon({ className = "w-6 h-6", ...props }) {
         y1="310"
         x2="322"
         y2="310"
-        stroke="#4B5563"
+        stroke="#64748b"
         strokeWidth="14"
         strokeLinecap="round"
       />
@@ -61,7 +61,7 @@ export function LogoIcon({ className = "w-6 h-6", ...props }) {
         y1="345"
         x2="270"
         y2="345"
-        stroke="#4B5563"
+        stroke="#64748b"
         strokeWidth="14"
         strokeLinecap="round"
       />
@@ -70,7 +70,7 @@ export function LogoIcon({ className = "w-6 h-6", ...props }) {
         y1="380"
         x2="300"
         y2="380"
-        stroke="#4B5563"
+        stroke="#64748b"
         strokeWidth="14"
         strokeLinecap="round"
       />
@@ -81,7 +81,11 @@ export function LogoIcon({ className = "w-6 h-6", ...props }) {
 /**
  * LogoBrand: Icon + "SimpleSOAP" text.
  */
-export function LogoBrand({ iconClassName = "w-6 h-6", textClassName = "text-emerald-800 font-extrabold text-lg tracking-tight", className = "flex items-center gap-2" }) {
+export function LogoBrand({
+  iconClassName = "w-6 h-6",
+  textClassName = "text-slate-800 font-extrabold text-lg tracking-tight",
+  className = "flex items-center gap-2"
+}) {
   return (
     <div className={className}>
       <LogoIcon className={iconClassName} />

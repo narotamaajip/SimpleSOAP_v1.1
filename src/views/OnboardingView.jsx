@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Activity, ShieldCheck } from 'lucide-react';
 import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { AmbientBackground } from '../components/ui/AmbientBackground';
 
 export default function OnboardingView({ user, onComplete }) {
   const [name, setName] = useState('');
@@ -46,63 +48,77 @@ export default function OnboardingView({ user, onComplete }) {
   };
 
   return (
-    <div className="max-w-md mx-auto h-screen bg-emerald-600 flex flex-col border-x border-slate-200 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-10 pointer-events-none">
-        <Activity size={400} className="absolute -top-20 -right-20 text-white" />
-      </div>
+    <div className="max-w-md mx-auto h-screen liquid-canvas flex flex-col border-x border-white/60 relative overflow-hidden">
+      <AmbientBackground />
 
-      <div className="flex-1 flex flex-col justify-end p-6 z-10">
-        <div className="mb-6">
-          <h1 className="text-3xl font-black text-white leading-tight">Selamat Datang di SimpleSOAP!</h1>
-          <p className="text-emerald-100 font-medium mt-2 text-sm">
+      <div className="flex-1 flex flex-col justify-center p-6 z-10 overflow-y-auto no-scrollbar">
+        <div className="mb-5">
+          <span className="inline-block px-3 py-1 rounded-full glass-subpanel text-[10px] font-bold text-cyan-800 uppercase tracking-widest mb-2">
+            Profil Klinis
+          </span>
+          <h1 className="text-2xl font-extrabold text-slate-800 leading-tight">
+            Selamat Datang di SimpleSOAP!
+          </h1>
+          <p className="text-slate-500 font-medium mt-1.5 text-xs leading-relaxed">
             Sebelum mulai mencatat visitasi pasien, mari lengkapi identitas profesi medis Anda.
           </p>
         </div>
 
-        <form
+        <motion.form
+          initial={{ opacity: 0, y: 12, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 360, damping: 30 }}
           onSubmit={handleSaveProfile}
-          className="bg-white p-6 rounded-2xl shadow-2xl space-y-4 mb-4 overflow-y-auto max-h-[70vh] no-scrollbar"
+          className="glass-card p-6 rounded-3xl space-y-4"
         >
           <div>
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">
               NAMA LENGKAP &amp; GELAR *
             </label>
             <input
-              type="text" required placeholder="Cth: dr. Andi Susanto, Sp.PD"
-              value={name} onChange={(e) => setName(e.target.value)}
-              className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:bg-white focus:border-emerald-500 outline-none transition-colors"
+              type="text"
+              required
+              placeholder="Cth: dr. Andi Susanto, Sp.PD"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full p-3.5 rounded-2xl glass-input text-sm font-semibold text-slate-800"
             />
           </div>
           <div>
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">
               NOMOR SIP / STR *
             </label>
             <input
-              type="text" required placeholder="Cth: SIP.123.456.789 / STR..."
-              value={credentials} onChange={(e) => setCredentials(e.target.value)}
-              className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:bg-white focus:border-emerald-500 outline-none transition-colors"
+              type="text"
+              required
+              placeholder="Cth: SIP.123.456.789 / STR..."
+              value={credentials}
+              onChange={(e) => setCredentials(e.target.value)}
+              className="w-full p-3.5 rounded-2xl glass-input text-sm font-semibold text-slate-800"
             />
           </div>
           <div>
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">
               SPESIALISASI / RUANGAN (OPSIONAL)
             </label>
             <input
-              type="text" placeholder="Cth: Penyakit Dalam / Rawat Inap"
-              value={specialty} onChange={(e) => setSpecialty(e.target.value)}
-              className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:bg-white focus:border-emerald-500 outline-none transition-colors"
+              type="text"
+              placeholder="Cth: Penyakit Dalam / Rawat Inap"
+              value={specialty}
+              onChange={(e) => setSpecialty(e.target.value)}
+              className="w-full p-3.5 rounded-2xl glass-input text-sm font-semibold text-slate-800"
             />
           </div>
 
           {/* Medical Disclaimer Checkbox */}
-          <div className="pt-2 flex items-start gap-2.5 bg-emerald-50/70 p-3.5 rounded-xl border border-emerald-100">
+          <div className="pt-1 flex items-start gap-2.5 glass-subpanel p-3.5 rounded-2xl">
             <input
               type="checkbox"
               id="disclaimer"
               required
               checked={hasAcceptedDisclaimer}
               onChange={(e) => setHasAcceptedDisclaimer(e.target.checked)}
-              className="mt-0.5 w-4 h-4 text-emerald-600 rounded border-emerald-300 focus:ring-emerald-500 shrink-0 cursor-pointer"
+              className="mt-0.5 w-4 h-4 text-cyan-700 rounded border-slate-300 focus:ring-cyan-600 shrink-0 cursor-pointer"
             />
             <label htmlFor="disclaimer" className="text-[11px] font-medium text-slate-700 leading-snug cursor-pointer select-none">
               Saya menyatakan bahwa saya adalah tenaga medis berwenang dan memahami bahwa SimpleSOAP adalah <strong>asisten dokumentasi personal</strong>, bukan pengganti rekam medis resmi fasyankes.
@@ -112,7 +128,7 @@ export default function OnboardingView({ user, onComplete }) {
           <button
             type="submit"
             disabled={isSubmitting || !hasAcceptedDisclaimer}
-            className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-sm rounded-xl shadow-lg shadow-emerald-600/30 active:scale-[0.98] transition-transform flex items-center justify-center gap-2 mt-4"
+            className="w-full py-4 glass-btn-primary disabled:opacity-50 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 mt-2"
           >
             {isSubmitting ? (
               <Activity className="animate-spin" size={20} />
@@ -123,7 +139,7 @@ export default function OnboardingView({ user, onComplete }) {
               </>
             )}
           </button>
-        </form>
+        </motion.form>
       </div>
     </div>
   );

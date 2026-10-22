@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Activity } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
@@ -7,6 +8,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { LogoIcon } from '../components/ui/Logo';
+import { AmbientBackground } from '../components/ui/AmbientBackground';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 
 export function LoginView({ onSwitch, onForgotPassword }) {
@@ -42,18 +44,27 @@ export function LoginView({ onSwitch, onForgotPassword }) {
   };
 
   return (
-    <div className="max-w-md mx-auto h-screen bg-white flex flex-col items-center justify-center border-x border-slate-200 p-6 overflow-y-auto">
-      <div className="w-full max-w-sm space-y-6 my-auto py-6">
+    <div className="max-w-md mx-auto h-screen liquid-canvas flex flex-col items-center justify-center border-x border-white/60 p-6 overflow-y-auto relative">
+      <AmbientBackground />
+
+      <motion.div
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+        className="w-full max-w-sm glass-card rounded-3xl p-6 space-y-6 my-auto z-10"
+      >
         <div className="text-center space-y-2">
-          <div className="bg-emerald-50 border border-emerald-100 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+          <div className="glass-subpanel w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-3">
             <LogoIcon className="w-10 h-10" />
           </div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight">SimpleSOAP</h1>
-          <p className="text-sm font-medium text-slate-500">Masuk untuk mengakses rekam medis pasien.</p>
+          <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">SimpleSOAP</h1>
+          <p className="text-xs font-medium text-slate-500">
+            Masuk untuk mengakses rekam medis pasien.
+          </p>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-50 text-rose-600 text-xs font-bold rounded-lg border border-rose-100 text-center leading-relaxed">
+          <div className="p-3 bg-rose-500/12 text-rose-700 text-xs font-bold rounded-2xl border border-rose-200/80 text-center leading-relaxed">
             {error}
           </div>
         )}
@@ -64,13 +75,13 @@ export function LoginView({ onSwitch, onForgotPassword }) {
             type="button"
             onClick={handleGoogleLogin}
             disabled={isSubmitting}
-            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-transform flex items-center justify-center gap-3"
+            className="w-full py-3.5 glass-btn-primary font-bold text-sm rounded-2xl flex items-center justify-center gap-3"
           >
             {isSubmitting ? (
               <Activity className="animate-spin" size={20} />
             ) : (
               <>
-                <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg" className="bg-white rounded-full p-0.5">
+                <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg" className="bg-white rounded-full p-0.5 shadow-sm">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                   <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -84,11 +95,11 @@ export function LoginView({ onSwitch, onForgotPassword }) {
 
         {/* Separator for legacy email login */}
         <div className="relative flex items-center py-1">
-          <div className="flex-grow border-t border-slate-200" />
+          <div className="flex-grow border-t border-white/80" />
           <span className="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
             Atau Email Terdaftar
           </span>
-          <div className="flex-grow border-t border-slate-200" />
+          <div className="flex-grow border-t border-white/80" />
         </div>
 
         {/* Legacy Email/Password Login Form */}
@@ -99,7 +110,7 @@ export function LoginView({ onSwitch, onForgotPassword }) {
             placeholder="Alamat Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-emerald-500 outline-none transition-colors"
+            className="w-full p-3.5 rounded-2xl glass-input text-sm font-medium text-slate-800"
           />
           <div className="space-y-1">
             <input
@@ -108,13 +119,13 @@ export function LoginView({ onSwitch, onForgotPassword }) {
               placeholder="Kata Sandi"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-emerald-500 outline-none transition-colors"
+              className="w-full p-3.5 rounded-2xl glass-input text-sm font-medium text-slate-800"
             />
             <div className="flex justify-end pt-1">
               <button
                 type="button"
                 onClick={onForgotPassword}
-                className="text-xs font-bold text-slate-400 hover:text-emerald-700 transition-colors"
+                className="text-xs font-bold text-slate-500 hover:text-cyan-800 transition-colors"
               >
                 Lupa Password?
               </button>
@@ -123,21 +134,21 @@ export function LoginView({ onSwitch, onForgotPassword }) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-3.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm rounded-xl shadow active:scale-[0.98] transition-transform flex items-center justify-center"
+            className="w-full py-3.5 glass-btn-secondary text-slate-800 font-bold text-sm rounded-2xl flex items-center justify-center"
           >
             {isSubmitting ? <Activity className="animate-spin" size={20} /> : 'Masuk dengan Email'}
           </button>
         </form>
 
-        <div className="pt-2 text-center">
-          <p className="text-xs font-bold text-slate-500">
+        <div className="pt-1 text-center">
+          <p className="text-xs font-semibold text-slate-500">
             Dokter baru?{' '}
-            <button onClick={onSwitch} className="text-emerald-600 font-bold hover:underline">
+            <button onClick={onSwitch} className="text-cyan-800 font-bold hover:underline">
               Daftar sekarang
             </button>
           </p>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

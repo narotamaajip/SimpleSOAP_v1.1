@@ -23,8 +23,7 @@ import {
   serverTimestamp,
   arrayUnion,
   deleteDoc,
-  getDocs,
-  orderBy
+  getDocs
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
@@ -92,6 +91,7 @@ export function subscribeToPatients(userId, onData, onError) {
 export async function addPatient(patientData, userId, initialSoapItem) {
   const historyItem = initialSoapItem ? [initialSoapItem] : [];
   const now = Date.now();
+  const isInitialDischarged = !!initialSoapItem?.isDischarged;
 
   const docRef = await addDoc(collection(db, PATIENTS_COL), {
     ...patientData,
@@ -99,7 +99,7 @@ export async function addPatient(patientData, userId, initialSoapItem) {
     accessList: [userId],
     history: historyItem,
     isFollowedUp: !!initialSoapItem,
-    status: initialSoapItem ? 'SUDAH FU' : 'BELUM FU',
+    status: isInitialDischarged ? 'PULANG' : (initialSoapItem ? 'SUDAH FU' : 'BELUM FU'),
     lastSoapDate: initialSoapItem ? initialSoapItem.date : null,
     lastSoapDoctor: initialSoapItem ? initialSoapItem.doctor : null,
     isDeleted: false,
@@ -107,11 +107,13 @@ export async function addPatient(patientData, userId, initialSoapItem) {
     localTimestamp: now
   });
 
-  // Also write initial SOAP to subcollection if provided
+  // Also write initial SOAP to subcollection if provided (using same ID for lean consistency)
   if (initialSoapItem) {
     try {
-      await addDoc(collection(db, PATIENTS_COL, docRef.id, 'soapNotes'), {
+      const noteDocId = String(initialSoapItem.id || now);
+      await setDoc(doc(db, PATIENTS_COL, docRef.id, 'soapNotes', noteDocId), {
         ...initialSoapItem,
+        id: initialSoapItem.id || now,
         authorId: userId,
         createdAt: serverTimestamp(),
         localTimestamp: now
@@ -234,20 +236,67 @@ export async function permanentDeletePatient(patientId, patient, currentUserId) 
 }
 
 // ---------------------------------------------------------------------------
+// getNoteTimestamp
+// Helper for consistent chronological sorting (works both online & offline).
+// ---------------------------------------------------------------------------
+function getNoteTimestamp(note) {
+  if (note.localTimestamp && typeof note.localTimestamp === 'number') {
+    return note.localTimestamp;
+  }
+  if (note.createdAt?.toMillis) {
+    return note.createdAt.toMillis();
+  }
+  const numId = Number(note.id);
+  if (!isNaN(numId) && numId > 1000000000000) {
+    return numId;
+  }
+  return 0;
+}
+
+// ---------------------------------------------------------------------------
+// mergeSoapHistory
+// Merges legacy patient.history and subcollection soapNotes without losing
+// older entries, deduplicating by note id, and sorting newest-first.
+// ---------------------------------------------------------------------------
+export function mergeSoapHistory(historyArray = [], subcollectionNotes = []) {
+  const map = new Map();
+
+  for (const item of historyArray) {
+    if (item && item.id !== undefined) {
+      map.set(String(item.id), item);
+    }
+  }
+
+  for (const note of subcollectionNotes) {
+    if (note && note.id !== undefined) {
+      const key = String(note.id);
+      const existing = map.get(key) || {};
+      map.set(key, { ...existing, ...note });
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => getNoteTimestamp(b) - getNoteTimestamp(a));
+}
+
+// ---------------------------------------------------------------------------
 // subscribeToSoapNotes
 // Listens to real-time notes in the subcollection patients/{patientId}/soapNotes.
 // ---------------------------------------------------------------------------
 export function subscribeToSoapNotes(patientId, onData, onError) {
   const notesRef = collection(db, PATIENTS_COL, patientId, 'soapNotes');
-  const q = query(notesRef, orderBy('createdAt', 'desc'));
 
   return onSnapshot(
-    q,
+    notesRef,
     (snapshot) => {
-      const notes = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data()
-      }));
+      const notes = snapshot.docs.map((d) => {
+        const data = d.data();
+        return {
+          ...data,
+          id: data.id !== undefined ? data.id : d.id,
+          _docId: d.id
+        };
+      });
+      notes.sort((a, b) => getNoteTimestamp(b) - getNoteTimestamp(a));
       onData(notes);
     },
     (err) => {
@@ -264,17 +313,19 @@ export function subscribeToSoapNotes(patientId, onData, onError) {
 export async function addSoapEntry(patientId, soapData, isDischarged, currentUserId) {
   const patientRef = doc(db, PATIENTS_COL, patientId);
   const now = Date.now();
+  const noteId = soapData.id || now;
 
   const fullSoapData = {
     ...soapData,
+    id: noteId,
     authorId: currentUserId || null,
     createdAt: serverTimestamp(),
     localTimestamp: now
   };
 
-  // 1. Write to subcollection (scalable, no 1MB limit)
+  // 1. Write to subcollection using consistent ID
   try {
-    await addDoc(collection(db, PATIENTS_COL, patientId, 'soapNotes'), fullSoapData);
+    await setDoc(doc(db, PATIENTS_COL, patientId, 'soapNotes', String(noteId)), fullSoapData);
   } catch (err) {
     console.warn('Could not write to soapNotes subcollection, continuing with parent doc update:', err);
   }
@@ -285,7 +336,7 @@ export async function addSoapEntry(patientId, soapData, isDischarged, currentUse
     lastSoapDate: soapData.date,
     lastSoapDoctor: soapData.doctor,
     isFollowedUp: true,
-    history: arrayUnion(soapData)
+    history: arrayUnion({ ...soapData, id: noteId })
   });
 }
 
@@ -293,7 +344,7 @@ export async function addSoapEntry(patientId, soapData, isDischarged, currentUse
 // updateSoapEntry
 // Updates an existing SOAP note with audit trail (isEdited, editedAt, editedBy).
 // ---------------------------------------------------------------------------
-export async function updateSoapEntry(patientId, editingSoapId, updatedSoapData, fullHistory, isDischarged, editorDoctorName) {
+export async function updateSoapEntry(patientId, editingSoapId, updatedSoapData, fullHistory, isDischarged, editorDoctorName, subcollectionDocId) {
   const patientRef = doc(db, PATIENTS_COL, patientId);
   const editTimestamp = `${getFormattedDate()} ${getFormattedTime()}`;
 
@@ -304,17 +355,16 @@ export async function updateSoapEntry(patientId, editingSoapId, updatedSoapData,
     editedBy: editorDoctorName || 'Dokter'
   };
 
-  // 1. Try to update in subcollection if editingSoapId is a subcollection doc ID
-  if (typeof editingSoapId === 'string' && editingSoapId.length > 10) {
-    try {
-      const noteRef = doc(db, PATIENTS_COL, patientId, 'soapNotes', editingSoapId);
-      await updateDoc(noteRef, {
-        ...auditedData,
-        updatedAt: serverTimestamp()
-      });
-    } catch (err) {
-      console.warn('Subcollection note update skipped or not found:', err);
-    }
+  // 1. Update in subcollection (matching either _docId or String(editingSoapId))
+  const targetDocId = subcollectionDocId || String(editingSoapId);
+  try {
+    const noteRef = doc(db, PATIENTS_COL, patientId, 'soapNotes', targetDocId);
+    await updateDoc(noteRef, {
+      ...auditedData,
+      updatedAt: serverTimestamp()
+    });
+  } catch (err) {
+    console.warn('Subcollection note update skipped or not found:', err);
   }
 
   // 2. Update in parent document history array
@@ -324,7 +374,7 @@ export async function updateSoapEntry(patientId, editingSoapId, updatedSoapData,
 
   return updateDoc(patientRef, {
     history: updatedHistory,
-    ...(isDischarged && { status: 'PULANG' })
+    ...(typeof isDischarged === 'boolean' && { status: isDischarged ? 'PULANG' : 'SUDAH FU' })
   });
 }
 

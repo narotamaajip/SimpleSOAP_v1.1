@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, AlertCircle } from 'lucide-react';
+import { GlassSelect } from '../components/ui/GlassSelect';
+import { AmbientBackground } from '../components/ui/AmbientBackground';
 import { cn } from '../utils/cn';
+
+const SEX_OPTIONS = [
+  { value: 'L', label: 'L (Pria)' },
+  { value: 'P', label: 'P (Wanita)' }
+];
 
 export function EditPatientProfileForm({ patient, onBack, onSave }) {
   const [patientData, setPatientData] = useState({
@@ -85,28 +92,31 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 50 }}
-      className="flex-1 flex flex-col h-full bg-[#f9fcf9] overflow-hidden absolute inset-0 z-50"
+      initial={{ opacity: 0, y: 24, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 24, scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.8 }}
+      className="flex-1 flex flex-col h-full liquid-canvas overflow-hidden absolute inset-0 z-50"
     >
-      <div className="bg-white px-4 py-3 flex items-center justify-between border-b border-slate-100 sticky top-0 z-30 shadow-sm">
-        <button onClick={handleClose} className="text-slate-400 p-1 rounded-full hover:bg-slate-50">
-          <X size={24} />
+      <AmbientBackground />
+
+      <div className="glass-bar px-4 py-3 flex items-center justify-between border-b sticky top-0 z-30">
+        <button onClick={handleClose} className="text-slate-600 p-1.5 rounded-xl glass-btn-secondary">
+          <X size={20} />
         </button>
-        <h2 className="text-emerald-800 font-black text-sm tracking-tight uppercase">Edit Pasien</h2>
+        <h2 className="text-slate-800 font-extrabold text-sm tracking-tight uppercase">Edit Pasien</h2>
         <button
           onClick={handleSave}
-          className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform"
+          className="glass-btn-primary px-4 py-1.5 rounded-xl text-xs font-bold"
         >
           Simpan
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3">
-        <div className="space-y-3 bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+      <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3 z-10">
+        <div className="space-y-3.5 glass-card p-5 rounded-3xl">
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase">Nama Pasien *</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nama Pasien *</label>
             <input
               value={patientData.name}
               onChange={(e) => {
@@ -115,8 +125,8 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
               }}
               placeholder="Nama Pasien"
               className={cn(
-                'w-full mt-1 p-3 rounded-lg border text-sm font-medium bg-slate-50 focus:bg-white outline-none transition-colors',
-                errors.name ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                'w-full mt-1 p-3 rounded-2xl glass-input text-sm font-semibold text-slate-800',
+                errors.name && 'border-rose-400 bg-rose-50/40'
               )}
             />
             {errors.name && (
@@ -127,17 +137,17 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
           </div>
 
           <div className="flex gap-2 items-start">
-            <div className="w-1/2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase">No RM</label>
+            <div className="w-[44%]">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">No RM</label>
               <input
                 value={patientData.rm}
                 onChange={(e) => setPatientData({ ...patientData, rm: e.target.value })}
                 placeholder="No RM (opsional)"
-                className="w-full mt-1 p-3 rounded-lg border border-slate-200 text-sm font-medium bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors"
+                className="w-full mt-1 p-3 rounded-2xl glass-input text-sm font-semibold text-slate-800"
               />
             </div>
-            <div className="w-1/4">
-              <label className="text-[10px] font-bold text-slate-500 uppercase">Usia *</label>
+            <div className="w-[26%]">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Usia *</label>
               <input
                 value={patientData.age}
                 onChange={(e) => {
@@ -148,29 +158,29 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
                 inputMode="numeric"
                 placeholder="Usia"
                 className={cn(
-                  'w-full mt-1 p-3 rounded-lg border text-sm font-medium bg-slate-50 focus:bg-white outline-none transition-colors',
-                  errors.age ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                  'w-full mt-1 p-3 rounded-2xl glass-input text-sm font-semibold text-slate-800',
+                  errors.age && 'border-rose-400 bg-rose-50/40'
                 )}
               />
               {errors.age && (
                 <p className="text-[10px] font-bold text-rose-600 mt-1 leading-tight">{errors.age}</p>
               )}
             </div>
-            <div className="w-1/4">
-              <label className="text-[10px] font-bold text-slate-500 uppercase">Kelamin</label>
-              <select
-                value={patientData.sex}
-                onChange={(e) => setPatientData({ ...patientData, sex: e.target.value })}
-                className="w-full mt-1 p-3 rounded-lg border border-slate-200 text-sm font-medium bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors"
-              >
-                <option value="L">L</option>
-                <option value="P">P</option>
-              </select>
+            <div className="w-[30%]">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Kelamin</label>
+              <div className="mt-1">
+                <GlassSelect
+                  value={patientData.sex}
+                  onChange={(val) => setPatientData({ ...patientData, sex: val })}
+                  options={SEX_OPTIONS}
+                  buttonClassName="py-3 rounded-2xl text-sm"
+                />
+              </div>
             </div>
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase">Bangsal / Ruangan *</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bangsal / Ruangan *</label>
             <input
               value={patientData.ward}
               onChange={(e) => {
@@ -179,8 +189,8 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
               }}
               placeholder="Bangsal / Ruangan"
               className={cn(
-                'w-full mt-1 p-3 rounded-lg border text-sm font-medium bg-slate-50 focus:bg-white outline-none transition-colors',
-                errors.ward ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                'w-full mt-1 p-3 rounded-2xl glass-input text-sm font-semibold text-slate-800',
+                errors.ward && 'border-rose-400 bg-rose-50/40'
               )}
             />
             {errors.ward && (
@@ -191,7 +201,7 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase">DPJP *</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">DPJP *</label>
             <input
               value={patientData.dpjp}
               onChange={(e) => {
@@ -200,8 +210,8 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
               }}
               placeholder="DPJP"
               className={cn(
-                'w-full mt-1 p-3 rounded-lg border text-sm font-medium bg-slate-50 focus:bg-white outline-none transition-colors',
-                errors.dpjp ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                'w-full mt-1 p-3 rounded-2xl glass-input text-sm font-semibold text-slate-800',
+                errors.dpjp && 'border-rose-400 bg-rose-50/40'
               )}
             />
             {errors.dpjp && (
@@ -212,7 +222,7 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase">Diagnosis Utama *</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Diagnosis Utama *</label>
             <input
               value={patientData.dx}
               onChange={(e) => {
@@ -221,8 +231,8 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
               }}
               placeholder="Diagnosis Utama"
               className={cn(
-                'w-full mt-1 p-3 rounded-lg border text-sm font-medium bg-slate-50 focus:bg-white outline-none transition-colors',
-                errors.dx ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-emerald-500'
+                'w-full mt-1 p-3 rounded-2xl glass-input text-sm font-semibold text-slate-800',
+                errors.dx && 'border-rose-400 bg-rose-50/40'
               )}
             />
             {errors.dx && (
@@ -233,12 +243,12 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase">Alergi Obat</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Alergi Obat</label>
             <input
               value={patientData.alergi}
               onChange={(e) => setPatientData({ ...patientData, alergi: e.target.value })}
               placeholder="Alergi Obat (opsional)"
-              className="w-full mt-1 p-3 rounded-lg border border-slate-200 text-sm font-medium bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors"
+              className="w-full mt-1 p-3 rounded-2xl glass-input text-sm font-semibold text-slate-800"
             />
           </div>
         </div>

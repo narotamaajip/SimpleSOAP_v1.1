@@ -10,36 +10,58 @@ export function PatientCardDetailed({ patient, onClick, id }) {
       id={id}
       onClick={onClick}
       className={cn(
-        'bg-white p-4 rounded-xl border shadow-sm border-l-[6px] active:scale-[0.99] transition-all cursor-pointer',
-        isDischarged
-          ? 'border-slate-400 opacity-80'
-          : isPending
-          ? 'border-rose-500'
-          : 'border-emerald-500'
+        'glass-card-interactive p-4 pl-5 rounded-2xl cursor-pointer relative overflow-hidden',
+        isDischarged && 'opacity-80'
       )}
     >
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h4 className="text-base font-black text-slate-800 leading-tight">{patient.name}</h4>
-          <p className="text-[10px] font-mono text-slate-400 font-bold mt-1">Usia: {patient.age} thn</p>
+      {/* Full-height solid accent strip flush along the entire left edge */}
+      <div
+        className={cn(
+          'absolute left-0 top-0 bottom-0 w-[5px]',
+          isDischarged
+            ? 'bg-slate-400'
+            : isPending
+            ? 'bg-[#EF4444]'
+            : 'bg-[#10B981]'
+        )}
+      />
+
+      <div className="flex justify-between items-start gap-2 mb-2.5">
+        <div className="min-w-0">
+          <h4 className="text-base font-extrabold text-slate-800 leading-tight truncate">
+            {patient.name}
+          </h4>
+          <p className="text-[11px] font-mono text-slate-500 font-semibold mt-0.5">
+            Usia: {patient.age} thn {patient.rm ? `• RM: ${patient.rm}` : ''}
+          </p>
         </div>
+
         <span
           className={cn(
-            'px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-white',
-            isDischarged ? 'bg-slate-400' : isPending ? 'bg-rose-500' : 'bg-emerald-500'
+            'px-2.5 py-1 rounded-md text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm shrink-0',
+            isDischarged
+              ? 'bg-slate-400'
+              : isPending
+              ? 'bg-[#EF4444] shadow-red-500/20'
+              : 'bg-[#10B981] shadow-emerald-500/20'
           )}
         >
           {patient.status}
         </span>
       </div>
-      <div className="pt-3 border-t border-slate-50 space-y-1.5">
+
+      <div className="pt-2.5 border-t border-slate-200/50 space-y-1.5">
         <div className="flex items-start gap-2">
-          <Stethoscope size={12} className="text-slate-300 mt-0.5" />
-          <p className="text-xs font-bold text-slate-600 line-clamp-1">{patient.dx}</p>
+          <Stethoscope size={13} className="text-teal-600/80 mt-0.5 shrink-0" />
+          <p className="text-xs font-semibold text-slate-600 line-clamp-1">
+            {patient.dx || '-'}
+          </p>
         </div>
         <div className="flex items-start gap-2">
-          <MapPin size={12} className="text-slate-300 mt-0.5" />
-          <p className="text-xs font-bold text-slate-600 line-clamp-1">{patient.ward}</p>
+          <MapPin size={13} className="text-slate-400 mt-0.5 shrink-0" />
+          <p className="text-xs font-semibold text-slate-500 line-clamp-1">
+            {patient.ward || '-'}
+          </p>
         </div>
       </div>
     </div>

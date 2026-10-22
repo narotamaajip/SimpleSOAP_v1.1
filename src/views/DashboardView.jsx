@@ -8,27 +8,30 @@ export function DashboardView({ patients, stats, doctorProfile, onSelectPatient,
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="flex-1 overflow-y-auto no-scrollbar pb-10"
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 12 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.8 }}
+      className="flex-1 overflow-y-auto no-scrollbar pb-12"
     >
-      <div className="bg-white px-4 py-3.5 flex items-center justify-center sticky top-0 z-20 border-b border-emerald-50 shadow-sm">
-        <div className="flex items-center gap-2">
-          <LogoIcon className="w-5 h-6" />
-          <h1 className="text-emerald-800 font-black text-lg tracking-tight">SimpleSOAP</h1>
+      <div className="glass-bar px-4 py-3.5 flex items-center justify-center sticky top-0 z-20 border-b">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl glass-subpanel flex items-center justify-center">
+            <LogoIcon className="w-4 h-5" />
+          </div>
+          <h1 className="text-slate-800 font-extrabold text-base tracking-tight">SimpleSOAP</h1>
         </div>
       </div>
 
-      <div className="p-4 space-y-6">
-        <div>
-          <h2 className="text-2xl font-black text-slate-800">Follow-Up Pasien</h2>
-          <p className="text-xs text-slate-500 font-bold mt-1 uppercase tracking-wider">
+      <div className="p-5 space-y-6">
+        <div className="pt-1">
+          <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">Follow-Up Pasien</h2>
+          <p className="text-xs text-slate-500 font-semibold mt-1 uppercase tracking-wider">
             Ringkasan harian {doctorProfile.name}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3.5">
           <StatCard
             label="TOTAL PASIEN AKTIF"
             value={stats.total}
@@ -51,12 +54,14 @@ export function DashboardView({ patients, stats, doctorProfile, onSelectPatient,
           />
         </div>
 
-        <div className="space-y-3">
-          <div className="flex justify-between items-center">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">PERLU FOLLOW-UP</h3>
+        <div className="space-y-3.5">
+          <div className="flex justify-between items-center px-0.5">
+            <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.16em]">
+              PERLU FOLLOW-UP
+            </h3>
             <button
               onClick={() => onNavigateToPatients('BELUM_FU')}
-              className="text-[10px] font-bold text-emerald-700"
+              className="text-[11px] font-bold text-cyan-800 hover:text-cyan-950 px-2.5 py-1 rounded-xl hover:bg-white/60 active:scale-95 transition-all"
             >
               LIHAT SEMUA
             </button>

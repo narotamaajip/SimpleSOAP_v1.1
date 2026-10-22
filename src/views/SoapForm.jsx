@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, FileText, CheckCircle2 } from 'lucide-react';
 import { AccordionSection } from '../components/ui/AccordionSection';
 import { VitalInput } from '../components/ui/VitalInput';
+import { AmbientBackground } from '../components/ui/AmbientBackground';
 
 const SOAP_TEMPLATES = {
   stabil: {
@@ -22,7 +23,36 @@ const SOAP_TEMPLATES = {
   }
 };
 
-export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
+function formatVitalsStr(vitals = {}) {
+  const { td, nadi, rr, suhu, spo2, bb } = vitals;
+  return [
+    td && `TD ${td} mmHg`,
+    nadi && `HR ${nadi} x/m`,
+    rr && `RR ${rr} x/m`,
+    suhu && `T ${suhu} °C`,
+    spo2 && `SpO2 ${spo2}%`,
+    bb && `BB ${bb} kg`
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
+
+function extractCleanO(item) {
+  if (!item) return '';
+  if (typeof item.rawO === 'string') return item.rawO;
+
+  let raw = item.o && item.o !== '-' ? item.o : '';
+  const vitalsStr = formatVitalsStr(item.vitals);
+  if (vitalsStr) {
+    const prefix = `${vitalsStr}.`;
+    while (raw.startsWith(prefix)) {
+      raw = raw.slice(prefix.length).replace(/^\n+/, '');
+    }
+  }
+  return raw;
+}
+
+export function SoapForm({ patient, notes, editingSoapId, onBack, onSave }) {
   const [activeSection, setActiveSection] = useState('s');
   const [isDischarged, setIsDischarged] = useState(patient.status === 'PULANG');
   const [hasDraftRestored, setHasDraftRestored] = useState(false);
@@ -37,16 +67,17 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
   });
 
   const draftKey = `soap_draft_${patient.id}`;
+  const availableNotes = notes && notes.length > 0 ? notes : (patient.history || []);
 
   // Load existing SOAP if editing, or restore local draft if creating new
   useEffect(() => {
     if (editingSoapId) {
-      const historyItem = (patient.history || []).find((h) => String(h.id) === String(editingSoapId));
+      const historyItem = availableNotes.find((h) => String(h.id) === String(editingSoapId));
       if (historyItem) {
         setSoap({
           s: historyItem.s && historyItem.s !== '-' ? historyItem.s : '',
           vitals: historyItem.vitals || { td: '', nadi: '', rr: '', suhu: '', spo2: '', bb: '' },
-          o: historyItem.o && historyItem.o !== '-' ? historyItem.o : '',
+          o: extractCleanO(historyItem),
           a: historyItem.a && historyItem.a !== '-' ? historyItem.a : '',
           p: historyItem.p && historyItem.p !== '-' ? historyItem.p : '',
           i: historyItem.i && historyItem.i !== '-' ? historyItem.i : ''
@@ -73,7 +104,7 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
 
   // Autosave draft to localStorage when creating a new SOAP note
   useEffect(() => {
-    if (editingSoapId) return; // do not autosave over drafts when editing old notes
+    if (editingSoapId) return;
 
     const hasAnyContent =
       soap.s.trim() ||
@@ -95,7 +126,6 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
     }
   }, [soap, isDischarged, editingSoapId, draftKey]);
 
-  // Check if form is dirty (has unsaved modifications)
   const isDirty = () => {
     return (
       soap.s.trim() !== '' ||
@@ -118,8 +148,12 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
   };
 
   const copyPrevious = () => {
-    if (patient.history && patient.history.length > 0) {
-      const historyCopy = [...patient.history].sort((a, b) => b.id - a.id);
+    if (availableNotes.length > 0) {
+      const historyCopy = [...availableNotes].sort((a, b) => {
+        const timeA = a.localTimestamp || Number(a.id) || 0;
+        const timeB = b.localTimestamp || Number(b.id) || 0;
+        return timeB - timeA;
+      });
       const prevItem = editingSoapId
         ? historyCopy.find((h) => String(h.id) !== String(editingSoapId))
         : historyCopy[0];
@@ -128,7 +162,7 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
         setSoap({
           s: prevItem.s && prevItem.s !== '-' ? prevItem.s : '',
           vitals: prevItem.vitals || { td: '', nadi: '', rr: '', suhu: '', spo2: '', bb: '' },
-          o: prevItem.o && prevItem.o !== '-' ? prevItem.o : '',
+          o: extractCleanO(prevItem),
           a: prevItem.a && prevItem.a !== '-' ? prevItem.a : '',
           p: prevItem.p && prevItem.p !== '-' ? prevItem.p : '',
           i: prevItem.i && prevItem.i !== '-' ? prevItem.i : ''
@@ -164,23 +198,13 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
       return;
     }
 
-    const { td, nadi, rr, suhu, spo2, bb } = soap.vitals;
-    const vitalsStr = [
-      td && `TD ${td} mmHg`,
-      nadi && `HR ${nadi} x/m`,
-      rr && `RR ${rr} x/m`,
-      suhu && `T ${suhu} °C`,
-      spo2 && `SpO2 ${spo2}%`,
-      bb && `BB ${bb} kg`
-    ]
-      .filter(Boolean)
-      .join(', ');
+    const vitalsStr = formatVitalsStr(soap.vitals);
+    const cleanRawO = soap.o.trim();
 
     let formattedO = '';
     if (vitalsStr) formattedO += vitalsStr + '.\n';
-    if (soap.o) formattedO += soap.o;
+    if (cleanRawO) formattedO += cleanRawO;
 
-    // Clean up draft from localStorage upon successful save
     try {
       localStorage.removeItem(draftKey);
     } catch (e) {
@@ -190,6 +214,7 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
     onSave({
       s: soap.s.trim() || '-',
       o: formattedO.trim() || '-',
+      rawO: cleanRawO,
       a: soap.a.trim() || '-',
       p: soap.p.trim() || '-',
       i: soap.i.trim() || '-',
@@ -200,22 +225,25 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 50 }}
-      className="flex-1 flex flex-col h-full bg-[#f9fcf9] overflow-hidden absolute inset-0 z-50"
+      initial={{ opacity: 0, y: 24, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 24, scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.8 }}
+      className="flex-1 flex flex-col h-full liquid-canvas overflow-hidden absolute inset-0 z-50"
     >
+      <AmbientBackground />
+
       {/* Header */}
-      <div className="bg-white px-4 py-3 flex items-center justify-between border-b border-slate-100 sticky top-0 z-30 shadow-sm">
-        <button onClick={handleClose} className="text-slate-400 p-1 rounded-full hover:bg-slate-50">
-          <X size={24} />
+      <div className="glass-bar px-4 py-3 flex items-center justify-between border-b sticky top-0 z-30">
+        <button onClick={handleClose} className="text-slate-600 p-1.5 rounded-xl glass-btn-secondary">
+          <X size={20} />
         </button>
-        <h2 className="text-emerald-800 font-black text-sm tracking-tight uppercase">
+        <h2 className="text-slate-800 font-extrabold text-sm tracking-tight uppercase">
           {editingSoapId ? 'Edit Catatan SOAP' : 'Entry SOAP Baru'}
         </h2>
         <button
           onClick={handleSave}
-          className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform"
+          className="glass-btn-primary px-4 py-1.5 rounded-xl text-xs font-bold"
         >
           Simpan
         </button>
@@ -223,47 +251,53 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
 
       {/* Restored Draft Banner */}
       {hasDraftRestored && (
-        <div className="bg-emerald-50 border-b border-emerald-100 px-4 py-2 flex items-center gap-2 text-xs font-bold text-emerald-800 animate-fadeIn">
-          <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+        <div className="glass-subpanel border-b border-white/80 px-4 py-2.5 flex items-center gap-2 text-xs font-bold text-teal-800 z-20">
+          <CheckCircle2 size={14} className="text-teal-600 shrink-0" />
           <span>Draf catatan belum tersimpan berhasil dipulihkan otomatis.</span>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto no-scrollbar pb-32">
+      <div className="flex-1 overflow-y-auto no-scrollbar pb-32 z-10">
         <div className="px-4 pt-5 pb-4">
-          <h1 className="text-2xl font-black text-slate-800">
+          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">
             {editingSoapId ? 'Koreksi SOAP' : 'Entry SOAP Baru'}
           </h1>
-          <p className="text-xs font-bold text-slate-500 mt-1">
-            {patient.name} (RM: {patient.rm || '-'}) - {patient.ward}
+          <p className="text-xs font-semibold text-slate-500 mt-1">
+            {patient.name} (RM: {patient.rm || '-'}) • {patient.ward}
           </p>
         </div>
 
         {/* Template Cepat */}
         <div className="px-4 mb-4">
-          <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-2">TEMPLATE CEPAT</p>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+            TEMPLATE CEPAT
+          </p>
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
             <button
+              type="button"
               onClick={copyPrevious}
-              className="px-4 py-2 rounded-lg bg-indigo-50/50 text-indigo-700 text-xs font-bold whitespace-nowrap border border-indigo-100 shadow-sm flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-2xl glass-btn-secondary text-cyan-900 text-xs font-bold whitespace-nowrap flex items-center gap-1.5"
             >
-              <FileText size={14} /> Salin Terakhir
+              <FileText size={13} className="text-cyan-700" /> Salin Terakhir
             </button>
             <button
+              type="button"
               onClick={() => applyTemplate('stabil')}
-              className="px-4 py-2 rounded-lg bg-emerald-50/50 text-slate-600 text-xs font-bold whitespace-nowrap border border-emerald-100 shadow-sm"
+              className="px-3.5 py-2 rounded-2xl glass-btn-secondary text-slate-700 text-xs font-semibold whitespace-nowrap"
             >
               Pasien Stabil
             </button>
             <button
+              type="button"
               onClick={() => applyTemplate('membaik')}
-              className="px-4 py-2 rounded-lg bg-emerald-50/50 text-slate-600 text-xs font-bold whitespace-nowrap border border-emerald-100 shadow-sm"
+              className="px-3.5 py-2 rounded-2xl glass-btn-secondary text-slate-700 text-xs font-semibold whitespace-nowrap"
             >
               Pasien Membaik
             </button>
             <button
+              type="button"
               onClick={() => applyTemplate('sesak')}
-              className="px-4 py-2 rounded-lg bg-emerald-50/50 text-slate-600 text-xs font-bold whitespace-nowrap border border-emerald-100 shadow-sm"
+              className="px-3.5 py-2 rounded-2xl glass-btn-secondary text-slate-700 text-xs font-semibold whitespace-nowrap"
             >
               Pasien Sesak
             </button>
@@ -273,12 +307,13 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
         {/* Accordions */}
         <div className="px-4 space-y-3 pb-8">
           <AccordionSection
-            id="s" title="(S) Subjective"
+            id="s"
+            title="(S) Subjective"
             isActive={activeSection === 's'}
             onClick={() => setActiveSection(activeSection === 's' ? null : 's')}
           >
             <textarea
-              className="w-full p-3 rounded-md border border-emerald-100 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm font-medium resize-none bg-white"
+              className="w-full p-3.5 rounded-2xl glass-input text-sm font-medium resize-none text-slate-800 placeholder:text-slate-400"
               rows={4}
               placeholder="Catatan keluhan tambahan pasien..."
               value={soap.s}
@@ -287,7 +322,8 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
           </AccordionSection>
 
           <AccordionSection
-            id="o" title="(O) Objective"
+            id="o"
+            title="(O) Objective"
             isActive={activeSection === 'o'}
             onClick={() => setActiveSection(activeSection === 'o' ? null : 'o')}
           >
@@ -301,9 +337,11 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
                 <VitalInput label="BB (kg)" placeholder="65.0" value={soap.vitals.bb} onChange={(v) => setSoap({ ...soap, vitals: { ...soap.vitals, bb: v } })} />
               </div>
               <div>
-                <p className="text-[10px] font-bold text-slate-800 mb-1.5">Pemeriksaan Fisik / Penunjang</p>
+                <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  Pemeriksaan Fisik / Penunjang
+                </p>
                 <textarea
-                  className="w-full p-3 rounded-md border border-emerald-100 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm font-medium resize-none bg-white"
+                  className="w-full p-3.5 rounded-2xl glass-input text-sm font-medium resize-none text-slate-800 placeholder:text-slate-400"
                   rows={4}
                   placeholder="Catatan pemeriksaan fisik dan hasil lab/radiologi..."
                   value={soap.o}
@@ -314,12 +352,13 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
           </AccordionSection>
 
           <AccordionSection
-            id="a" title="(A) Assessment"
+            id="a"
+            title="(A) Assessment"
             isActive={activeSection === 'a'}
             onClick={() => setActiveSection(activeSection === 'a' ? null : 'a')}
           >
             <textarea
-              className="w-full p-3 rounded-md border border-emerald-100 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm font-medium resize-none bg-white"
+              className="w-full p-3.5 rounded-2xl glass-input text-sm font-medium resize-none text-slate-800 placeholder:text-slate-400"
               rows={4}
               placeholder="Diagnosis atau masalah klinis saat ini..."
               value={soap.a}
@@ -328,12 +367,13 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
           </AccordionSection>
 
           <AccordionSection
-            id="p" title="(P) Plan"
+            id="p"
+            title="(P) Plan"
             isActive={activeSection === 'p'}
             onClick={() => setActiveSection(activeSection === 'p' ? null : 'p')}
           >
             <textarea
-              className="w-full p-3 rounded-md border border-emerald-100 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm font-medium resize-none bg-white"
+              className="w-full p-3.5 rounded-2xl glass-input text-sm font-medium resize-none text-slate-800 placeholder:text-slate-400"
               rows={4}
               placeholder="Rencana tatalaksana, terapi, dan edukasi..."
               value={soap.p}
@@ -342,12 +382,13 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
           </AccordionSection>
 
           <AccordionSection
-            id="i" title="(I) Instruction"
+            id="i"
+            title="(I) Instruction"
             isActive={activeSection === 'i'}
             onClick={() => setActiveSection(activeSection === 'i' ? null : 'i')}
           >
             <textarea
-              className="w-full p-3 rounded-md border border-emerald-100 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm font-medium resize-none bg-white"
+              className="w-full p-3.5 rounded-2xl glass-input text-sm font-medium resize-none text-slate-800 placeholder:text-slate-400"
               rows={4}
               placeholder="Instruksi spesifik kepada pasien/perawat..."
               value={soap.i}
@@ -356,15 +397,15 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
           </AccordionSection>
 
           {/* BLPL Checkbox */}
-          <div className="pt-2 flex items-center gap-3 bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+          <div className="flex items-center gap-3 glass-card p-4 rounded-2xl">
             <input
               type="checkbox"
               id="blpl"
               checked={isDischarged}
               onChange={(e) => setIsDischarged(e.target.checked)}
-              className="w-5 h-5 text-emerald-600 rounded border-emerald-300 focus:ring-emerald-500"
+              className="w-5 h-5 text-cyan-700 rounded-md border-slate-300 focus:ring-cyan-600 cursor-pointer"
             />
-            <label htmlFor="blpl" className="text-sm font-bold text-slate-800">
+            <label htmlFor="blpl" className="text-sm font-bold text-slate-800 cursor-pointer select-none">
               Tandai Pasien Boleh Pulang (BLPL)
             </label>
           </div>
@@ -373,13 +414,13 @@ export function SoapForm({ patient, editingSoapId, onBack, onSave }) {
           <div className="pt-4 pb-20 space-y-3">
             <button
               onClick={handleSave}
-              className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-sm shadow-lg shadow-emerald-600/30 active:scale-[0.98] transition-transform"
+              className="w-full py-4 glass-btn-primary rounded-2xl font-bold text-sm"
             >
               Simpan SOAP
             </button>
             <button
               onClick={handleClose}
-              className="w-full py-4 bg-white border-2 border-emerald-100 rounded-xl text-slate-700 font-bold text-sm shadow-sm active:scale-[0.98] transition-transform"
+              className="w-full py-4 glass-btn-secondary rounded-2xl text-slate-700 font-bold text-sm"
             >
               Kembali
             </button>

@@ -20,6 +20,7 @@ import { getFormattedDate, getFormattedTime } from './utils/timezone';
 // --- UI Components ---
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { NavItem } from './components/ui/NavItem';
+import { AmbientBackground } from './components/ui/AmbientBackground';
 import { TourClosingModal } from './components/TourClosingModal';
 
 // --- Views: eager-loaded (critical path) ---
@@ -51,9 +52,53 @@ export default function SoapApp() {
   const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [isAddingSoap, setIsAddingSoap] = useState(false);
   const [editingSoapId, setEditingSoapId] = useState(null);
+  const [activePatientNotes, setActivePatientNotes] = useState([]);
   const [isAddingNewPatient, setIsAddingNewPatient] = useState(false);
   const [isEditingPatientProfile, setIsEditingPatientProfile] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // --- Browser History (Android Back Button / Swipe Back) Sync ---
+  const overlayDepth = useMemo(() => {
+    if (isAddingSoap || isEditingPatientProfile) return 2;
+    if (selectedPatientId || isAddingNewPatient) return 1;
+    return 0;
+  }, [selectedPatientId, isAddingNewPatient, isAddingSoap, isEditingPatientProfile]);
+
+  const prevDepthRef = useRef(0);
+  const isPopStateRef = useRef(false);
+
+  useEffect(() => {
+    if (isPopStateRef.current) {
+      isPopStateRef.current = false;
+      prevDepthRef.current = overlayDepth;
+      return;
+    }
+    if (overlayDepth > prevDepthRef.current) {
+      window.history.pushState({ depth: overlayDepth }, '');
+    }
+    prevDepthRef.current = overlayDepth;
+  }, [overlayDepth]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (isAddingSoap) {
+        isPopStateRef.current = true;
+        setIsAddingSoap(false);
+        setEditingSoapId(null);
+      } else if (isEditingPatientProfile) {
+        isPopStateRef.current = true;
+        setIsEditingPatientProfile(false);
+      } else if (isAddingNewPatient) {
+        isPopStateRef.current = true;
+        setIsAddingNewPatient(false);
+      } else if (selectedPatientId) {
+        isPopStateRef.current = true;
+        setSelectedPatientId(null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isAddingSoap, isEditingPatientProfile, isAddingNewPatient, selectedPatientId]);
 
   // --- Onboarding Tour State ---
   const [isBrandNewDoctor, setIsBrandNewDoctor] = useState(false);
@@ -219,13 +264,15 @@ export default function SoapApp() {
 
     try {
       if (editingSoapId) {
+        const matchedNote = activePatientNotes.find((n) => String(n.id) === String(editingSoapId));
         await updateSoapEntry(
           selectedPatientId,
           editingSoapId,
           soapData,
           selectedPatient.history,
           isDischarged,
-          doctorProfile.name
+          doctorProfile.name,
+          matchedNote?._docId
         );
       } else {
         const soapEntry = {
@@ -401,15 +448,17 @@ export default function SoapApp() {
 
   // --- Main App ---
   return (
-    <div className="max-w-md mx-auto h-screen bg-[#f8fcf9] overflow-hidden font-sans relative flex flex-col border-x border-slate-200 shadow-2xl">
+    <div className="max-w-md mx-auto h-screen liquid-canvas overflow-hidden font-sans relative flex flex-col border-x border-white/60 shadow-2xl">
+      <AmbientBackground />
+
       {/* Floating Skip Tour Button */}
       {tourStep >= 1 && tourStep <= 5 && (
         <button
           onClick={skipTour}
-          className="fixed top-4 right-4 z-[99999] bg-slate-900/85 hover:bg-slate-900 text-white text-[11px] font-bold px-3 py-1.5 rounded-full shadow-lg backdrop-blur-sm transition-all active:scale-95 border border-white/20 flex items-center gap-1.5"
+          className="fixed top-4 right-4 z-[99999] bg-slate-900/75 hover:bg-slate-900/90 text-white text-[11px] font-bold px-3.5 py-1.5 rounded-full shadow-lg backdrop-blur-md transition-all active:scale-95 border border-white/30 flex items-center gap-1.5"
         >
           <span>Lewati Tur</span>
-          <span className="text-slate-400">✕</span>
+          <span className="text-slate-300">✕</span>
         </button>
       )}
 
@@ -418,7 +467,7 @@ export default function SoapApp() {
         {tourStep === 6 && <TourClosingModal onFinish={finishTour} />}
       </AnimatePresence>
 
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 overflow-hidden relative z-10 flex flex-col">
         <AnimatePresence mode="wait">
           {isEditingPatientProfile && selectedPatient ? (
             <EditPatientProfileForm
@@ -431,6 +480,7 @@ export default function SoapApp() {
             <SoapForm
               key="soap_form"
               patient={selectedPatient}
+              notes={activePatientNotes}
               editingSoapId={editingSoapId}
               onBack={() => {
                 setIsAddingSoap(false);
@@ -443,14 +493,16 @@ export default function SoapApp() {
               key="detail"
               patient={selectedPatient}
               onBack={() => setSelectedPatientId(null)}
-              onAddSoap={() => {
+              onAddSoap={(notesList) => {
+                setActivePatientNotes(notesList || []);
                 setIsAddingSoap(true);
                 if (tourStep === 5) {
                   setTourStep(6);
                 }
               }}
               onEditPatient={() => setIsEditingPatientProfile(true)}
-              onEditSoap={(historyId) => {
+              onEditSoap={(historyId, notesList) => {
+                setActivePatientNotes(notesList || []);
                 setEditingSoapId(historyId);
                 setIsAddingSoap(true);
               }}
@@ -458,62 +510,64 @@ export default function SoapApp() {
             />
           ) : (
             <div className="h-full flex flex-col">
-              {activeTab === 'beranda' && (
-                <DashboardView
-                  key="beranda"
-                  patients={patients}
-                  stats={stats}
-                  doctorProfile={doctorProfile}
-                  onSelectPatient={(id) => {
-                    setSelectedPatientId(id);
-                    if (tourStep === 4) {
-                      setTourStep(5);
-                    }
-                  }}
-                  onNavigateToPatients={(cat) => {
-                    setPatientFilterCategory(cat);
-                    setActiveTab('pasien');
-                    if (tourStep === 1) {
-                      setTourStep(2);
-                    }
-                  }}
-                />
-              )}
-              {activeTab === 'pasien' && (
-                <PatientListView
-                  key="pasien"
-                  patients={patients}
-                  searchQuery={searchQuery}
-                  setSearchQuery={setSearchQuery}
-                  categoryFilter={patientFilterCategory}
-                  setCategoryFilter={setPatientFilterCategory}
-                  onSelectPatient={(id) => {
-                    setSelectedPatientId(id);
-                    if (tourStep === 4) {
-                      setTourStep(5);
-                    }
-                  }}
-                  onAddPatientClick={() => {
-                    setIsAddingNewPatient(true);
-                    if (tourStep === 2) {
-                      setTourStep(3);
-                    }
-                  }}
-                />
-              )}
-              {activeTab === 'pengaturan' && (
-                <SettingsView
-                  key="pengaturan"
-                  doctorProfile={doctorProfile}
-                  setDoctorProfile={setDoctorProfile}
-                  patients={patients}
-                  currentUserId={user?.uid}
-                  onDeletePatient={handleDeletePatient}
-                  onRestorePatient={handleRestorePatient}
-                  onPermanentDeletePatient={handlePermanentDeletePatient}
-                  onStartTour={startTourManually}
-                />
-              )}
+              <AnimatePresence mode="wait">
+                {activeTab === 'beranda' && (
+                  <DashboardView
+                    key="beranda"
+                    patients={patients}
+                    stats={stats}
+                    doctorProfile={doctorProfile}
+                    onSelectPatient={(id) => {
+                      setSelectedPatientId(id);
+                      if (tourStep === 4) {
+                        setTourStep(5);
+                      }
+                    }}
+                    onNavigateToPatients={(cat) => {
+                      setPatientFilterCategory(cat);
+                      setActiveTab('pasien');
+                      if (tourStep === 1) {
+                        setTourStep(2);
+                      }
+                    }}
+                  />
+                )}
+                {activeTab === 'pasien' && (
+                  <PatientListView
+                    key="pasien"
+                    patients={patients}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    categoryFilter={patientFilterCategory}
+                    setCategoryFilter={setPatientFilterCategory}
+                    onSelectPatient={(id) => {
+                      setSelectedPatientId(id);
+                      if (tourStep === 4) {
+                        setTourStep(5);
+                      }
+                    }}
+                    onAddPatientClick={() => {
+                      setIsAddingNewPatient(true);
+                      if (tourStep === 2) {
+                        setTourStep(3);
+                      }
+                    }}
+                  />
+                )}
+                {activeTab === 'pengaturan' && (
+                  <SettingsView
+                    key="pengaturan"
+                    doctorProfile={doctorProfile}
+                    setDoctorProfile={setDoctorProfile}
+                    patients={patients}
+                    currentUserId={user?.uid}
+                    onDeletePatient={handleDeletePatient}
+                    onRestorePatient={handleRestorePatient}
+                    onPermanentDeletePatient={handlePermanentDeletePatient}
+                    onStartTour={startTourManually}
+                  />
+                )}
+              </AnimatePresence>
             </div>
           )}
         </AnimatePresence>
@@ -532,23 +586,23 @@ export default function SoapApp() {
       </AnimatePresence>
 
       {/* Bottom Navigation */}
-      <div className="bg-white border-t border-slate-100 flex items-center justify-around py-3 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-50">
+      <div className="glass-bar border-t flex items-center justify-around py-1.5 pb-3 z-40">
         <NavItem
-          icon={<LayoutGrid size={22} />}
+          icon={<LayoutGrid size={19} />}
           label="Beranda"
           active={activeTab === 'beranda' && !selectedPatientId}
           onClick={() => handleTabClick('beranda')}
         />
         <div id="tour-nav-pasien" className="flex items-center justify-center">
           <NavItem
-            icon={<Users size={22} />}
+            icon={<Users size={19} />}
             label="Pasien"
             active={activeTab === 'pasien' || !!selectedPatientId}
             onClick={() => handleTabClick('pasien')}
           />
         </div>
         <NavItem
-          icon={<Settings size={22} />}
+          icon={<Settings size={19} />}
           label="Pengaturan"
           active={activeTab === 'pengaturan' && !selectedPatientId}
           onClick={() => handleTabClick('pengaturan')}

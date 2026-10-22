@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { ChevronLeft, Key, Activity } from 'lucide-react';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { AmbientBackground } from '../components/ui/AmbientBackground';
 import { cn } from '../utils/cn';
 
 export default function ForgotPasswordView({ onBack }) {
@@ -36,14 +38,21 @@ export default function ForgotPasswordView({ onBack }) {
   };
 
   return (
-    <div className="max-w-md mx-auto h-screen bg-white flex flex-col items-center justify-center border-x border-slate-200 p-6">
-      <div className="w-full max-w-sm space-y-8">
+    <div className="max-w-md mx-auto h-screen liquid-canvas flex flex-col items-center justify-center border-x border-white/60 p-6 relative overflow-hidden">
+      <AmbientBackground />
+
+      <motion.div
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+        className="w-full max-w-sm glass-card rounded-3xl p-6 space-y-6 z-10"
+      >
         <div className="text-center space-y-2">
-          <div className="bg-emerald-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Key className="text-emerald-600" size={32} />
+          <div className="glass-subpanel w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <Key className="text-cyan-700" size={28} />
           </div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Lupa Password?</h1>
-          <p className="text-sm font-medium text-slate-500">
+          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Lupa Password?</h1>
+          <p className="text-xs font-medium text-slate-500">
             Masukkan email Anda untuk menerima link reset password.
           </p>
         </div>
@@ -52,23 +61,27 @@ export default function ForgotPasswordView({ onBack }) {
           {message.text && (
             <div
               className={cn(
-                'p-3 text-xs font-bold rounded-lg border text-center',
+                'p-3 text-xs font-bold rounded-2xl border text-center',
                 message.type === 'error'
-                  ? 'bg-rose-50 text-rose-600 border-rose-100'
-                  : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                  ? 'bg-rose-500/12 text-rose-700 border-rose-200/80'
+                  : 'bg-teal-500/12 text-teal-800 border-teal-200/80'
               )}
             >
               {message.text}
             </div>
           )}
           <input
-            type="email" required placeholder="Alamat Email"
-            value={email} onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-emerald-500 outline-none transition-colors"
+            type="email"
+            required
+            placeholder="Alamat Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-4 rounded-2xl glass-input text-sm font-medium text-slate-800"
           />
           <button
-            type="submit" disabled={isSubmitting}
-            className="w-full py-4 bg-emerald-600 text-white font-black text-sm rounded-xl shadow-lg shadow-emerald-600/30 active:scale-[0.98] transition-transform flex items-center justify-center"
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-4 glass-btn-primary font-bold text-sm rounded-2xl flex items-center justify-center"
           >
             {isSubmitting ? <Activity className="animate-spin" size={20} /> : 'Kirim Link Reset'}
           </button>
@@ -80,7 +93,7 @@ export default function ForgotPasswordView({ onBack }) {
         >
           <ChevronLeft size={14} /> Kembali ke Login
         </button>
-      </div>
+      </motion.div>
     </div>
   );
 }
