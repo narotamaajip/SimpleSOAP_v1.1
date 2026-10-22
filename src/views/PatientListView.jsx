@@ -14,7 +14,8 @@ export function PatientListView({
   categoryFilter,
   setCategoryFilter,
   onSelectPatient,
-  onAddPatientClick
+  onAddPatientClick,
+  isTourActive
 }) {
   const [roomFilter, setRoomFilter] = useState('');
   const [showRedeem, setShowRedeem] = useState(false);
@@ -278,8 +279,17 @@ export function PatientListView({
 
       <button
         id="tour-add-patient-btn"
+        type="button"
         onClick={onAddPatientClick}
-        className="absolute bottom-6 right-6 glass-btn-primary w-14 h-14 flex items-center justify-center rounded-full z-30"
+        onPointerDown={(e) => {
+          if (isTourActive) {
+            onAddPatientClick();
+          }
+        }}
+        className={cn(
+          "absolute bottom-6 right-6 glass-btn-primary w-14 h-14 flex items-center justify-center rounded-full z-30 transition-transform active:scale-95",
+          isTourActive && "ring-4 ring-cyan-400/60 shadow-xl shadow-cyan-500/40"
+        )}
       >
         <Plus size={26} />
       </button>

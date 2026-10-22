@@ -276,27 +276,46 @@ body {
 
 .driver-popover.simplesoap-theme .driver-popover-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  margin-top: 8px;
+  margin-top: 10px;
+  gap: 8px;
 }
 
 .driver-popover.simplesoap-theme .driver-popover-btn {
-  background: linear-gradient(180deg, #117a7a 0%, #0d6378 100%);
+  background: linear-gradient(135deg, #10b981 0%, #0d9488 55%, #06b6d4 100%);
   color: #ffffff;
   font-size: 12px;
   font-weight: 700;
-  padding: 8px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  padding: 8px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.5),
+    0 4px 12px rgba(13, 148, 136, 0.25);
   text-shadow: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.15s ease, filter 0.15s ease;
 }
 
 .driver-popover.simplesoap-theme .driver-popover-btn:hover {
   filter: brightness(1.06);
+}
+
+.driver-popover.simplesoap-theme .driver-popover-btn:active {
+  transform: scale(0.96);
+}
+
+/* Ensure highlighted tour elements always receive user taps and clicks */
+.driver-active #tour-add-patient-btn,
+.driver-active-element#tour-add-patient-btn,
+.driver-active #tour-nav-pasien,
+.driver-active #tour-save-patient-btn,
+.driver-active #tour-sample-patient-card,
+.driver-active #tour-add-soap-btn {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  z-index: 1000000002 !important;
 }
 
 .driver-popover.simplesoap-theme .driver-popover-close-btn {

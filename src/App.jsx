@@ -44,6 +44,25 @@ function AuthFallback() {
   return <LoadingSpinner text="Memuat..." />;
 }
 
+function waitForElement(selector, timeout = 2500) {
+  return new Promise((resolve) => {
+    const el = document.querySelector(selector);
+    if (el) return resolve(el);
+
+    const start = Date.now();
+    const interval = setInterval(() => {
+      const found = document.querySelector(selector);
+      if (found) {
+        clearInterval(interval);
+        resolve(found);
+      } else if (Date.now() - start > timeout) {
+        clearInterval(interval);
+        resolve(null);
+      }
+    }, 40);
+  });
+}
+
 export default function SoapApp() {
   const { confirm, alert: showAlert } = useDialog();
   const { user, authView, setAuthView, doctorProfile, setDoctorProfile } = useAuth();
@@ -147,41 +166,59 @@ export default function SoapApp() {
       return;
     }
 
+    let isCancelled = false;
+
     const driverInstance = driver({
       showProgress: false,
       popoverClass: 'simplesoap-theme',
       allowClose: false,
       overlayColor: 'rgba(0, 0, 0, 0.65)',
-      stagePadding: 6,
-      stageRadius: 12
+      stagePadding: 8,
+      stageRadius: tourStep === 2 ? 30 : 16
     });
     driverRef.current = driverInstance;
 
-    const timer = setTimeout(() => {
+    const runTourStep = async () => {
       try {
         if (tourStep === 1) {
+          const el = await waitForElement('#tour-nav-pasien');
+          if (isCancelled || !el) return;
           driverInstance.highlight({
-            element: '#tour-nav-pasien',
+            element: el,
             popover: {
               title: 'Daftar Pasien',
               description: 'Ini daftar pasien kamu, tempat semua catatan SOAP tersimpan.',
               side: 'top',
-              showButtons: []
+              nextBtnText: 'Buka Daftar Pasien',
+              showButtons: ['next'],
+              onNextClick: () => {
+                setActiveTab('pasien');
+                setTourStep(2);
+              }
             }
           });
         } else if (tourStep === 2) {
+          const el = await waitForElement('#tour-add-patient-btn');
+          if (isCancelled || !el) return;
           driverInstance.highlight({
-            element: '#tour-add-patient-btn',
+            element: el,
             popover: {
               title: 'Tambah Pasien Baru',
-              description: 'Tap di sini untuk menambahkan pasien baru.',
+              description: 'Tap tombol (+) atau tombol di bawah ini untuk menambahkan pasien baru.',
               side: 'top',
-              showButtons: []
+              nextBtnText: '+ Tambah Pasien',
+              showButtons: ['next'],
+              onNextClick: () => {
+                setIsAddingNewPatient(true);
+                setTourStep(3);
+              }
             }
           });
         } else if (tourStep === 3) {
+          const el = await waitForElement('#tour-save-patient-btn');
+          if (isCancelled || !el) return;
           driverInstance.highlight({
-            element: '#tour-save-patient-btn',
+            element: el,
             popover: {
               title: 'Simpan Data Pasien',
               description: 'Form ini sudah diisi contoh — coba tekan Simpan untuk lihat hasilnya.',
@@ -190,8 +227,10 @@ export default function SoapApp() {
             }
           });
         } else if (tourStep === 4) {
+          const el = await waitForElement('#tour-sample-patient-card');
+          if (isCancelled || !el) return;
           driverInstance.highlight({
-            element: '#tour-sample-patient-card',
+            element: el,
             popover: {
               title: 'Buka Detail Pasien',
               description: 'Ini pasienmu — tap untuk buka detail dan mulai catat SOAP.',
@@ -200,8 +239,10 @@ export default function SoapApp() {
             }
           });
         } else if (tourStep === 5) {
+          const el = await waitForElement('#tour-add-soap-btn');
+          if (isCancelled || !el) return;
           driverInstance.highlight({
-            element: '#tour-add-soap-btn',
+            element: el,
             popover: {
               title: 'Catat Follow-Up SOAP',
               description: 'Di sini tempat kamu mencatat follow-up harian pasien.',
@@ -213,9 +254,12 @@ export default function SoapApp() {
       } catch (err) {
         console.warn('Driver highlight error:', err);
       }
-    }, 200);
+    };
+
+    const timer = setTimeout(runTourStep, 80);
 
     return () => {
+      isCancelled = true;
       clearTimeout(timer);
       if (driverRef.current) {
         driverRef.current.destroy();
@@ -591,6 +635,7 @@ export default function SoapApp() {
                         setTourStep(3);
                       }
                     }}
+                    isTourActive={tourStep === 2}
                   />
                 )}
                 {activeTab === 'pengaturan' && (
