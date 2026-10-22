@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, User, AlertTriangle, Activity, Pencil, Send, X, ListRestart, Trash2, Copy, Check } from 'lucide-react';
-import { generateShareCode, subscribeToSoapNotes, mergeSoapHistory } from '../lib/patients';
+import { ChevronLeft, User, AlertTriangle, Activity, Pencil, Send, X, ListRestart, Trash2, Copy, Check, RefreshCw, LogOut } from 'lucide-react';
+import { generateShareCode, ensureShareCodeRegistered, removeFromAccessList, subscribeToSoapNotes, mergeSoapHistory } from '../lib/patients';
 import { auth } from '../lib/firebase';
 import { SoapItem } from '../components/SoapItem';
 import { cn } from '../utils/cn';
@@ -14,6 +14,7 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
   const [shareCode, setShareCode] = useState(patient.shareCode || null);
   const [showCode, setShowCode] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [subcollectionNotes, setSubcollectionNotes] = useState([]);
 
@@ -46,20 +47,56 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
   };
 
   const handleShare = async () => {
-    if (shareCode) {
-      setShowCode(true);
+    setIsGenerating(true);
+    try {
+      if (shareCode) {
+        // Ensure existing shareCode is registered in shareCodes collection so colleagues can redeem
+        await ensureShareCodeRegistered(patient.id, patient.name, auth.currentUser?.uid, shareCode);
+        setShowCode(!showCode);
+      } else {
+        const newCode = await generateShareCode(patient.id, patient.name, auth.currentUser?.uid);
+        setShareCode(newCode);
+        setShowCode(true);
+      }
+    } catch (err) {
+      console.error('Error sharing patient code:', err);
+      alert('Gagal memproses kode unik pasien. Silakan coba lagi.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleRegenerateCode = async () => {
+    if (!window.confirm('Buat kode akses baru untuk pasien ini? Kode lama tidak akan dapat digunakan lagi oleh rekan baru.')) {
       return;
     }
     setIsGenerating(true);
     try {
-      const newCode = await generateShareCode(patient.id, patient.name, auth.currentUser?.uid);
+      const newCode = await generateShareCode(patient.id, patient.name, auth.currentUser?.uid, shareCode);
       setShareCode(newCode);
       setShowCode(true);
+      setIsCopied(false);
     } catch (err) {
-      console.error(err);
-      alert('Gagal membuat kode unik.');
+      console.error('Error regenerating share code:', err);
+      alert('Gagal membuat kode baru.');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleLeavePatient = async () => {
+    if (!window.confirm(`Lepas akses rekam medis pasien "${patient.name}" dari daftar Anda? Pasien tidak akan muncul lagi di akun Anda.`)) {
+      return;
+    }
+    setIsLeaving(true);
+    try {
+      await removeFromAccessList(patient.id, auth.currentUser?.uid);
+      onBack();
+    } catch (err) {
+      console.error('Error leaving patient:', err);
+      alert('Gagal melepas akses pasien.');
+    } finally {
+      setIsLeaving(false);
     }
   };
 
@@ -98,6 +135,15 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
             className="text-slate-500 hover:text-rose-600 p-1.5 rounded-xl glass-btn-secondary transition-colors"
           >
             <Trash2 size={17} />
+          </button>
+        ) : !isOwner ? (
+          <button
+            onClick={handleLeavePatient}
+            disabled={isLeaving}
+            title="Lepas Akses Pasien"
+            className="text-slate-500 hover:text-amber-600 p-1.5 rounded-xl glass-btn-secondary transition-colors"
+          >
+            {isLeaving ? <Activity size={17} className="animate-spin" /> : <LogOut size={17} />}
           </button>
         ) : (
           <div className="w-8" />
@@ -149,13 +195,7 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
               {isOwner ? (
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => {
-                      if (shareCode) {
-                        setShowCode(!showCode);
-                      } else {
-                        handleShare();
-                      }
-                    }}
+                    onClick={handleShare}
                     disabled={isGenerating}
                     title="Bagikan Kode Akses"
                     className="p-2 text-cyan-800 glass-btn-secondary rounded-xl"
@@ -240,9 +280,18 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
                 {isCopied && (
                   <p className="text-[10px] font-bold text-teal-700 mb-1">Kode berhasil disalin!</p>
                 )}
-                <p className="text-xs font-medium text-slate-600 leading-relaxed">
+                <p className="text-xs font-medium text-slate-600 leading-relaxed mb-3">
                   Berikan kode ini kepada dokter rekanan untuk berbagi akses rekam medis pasien ini.
                 </p>
+                <button
+                  type="button"
+                  onClick={handleRegenerateCode}
+                  disabled={isGenerating}
+                  className="text-[11px] font-bold text-cyan-800 hover:text-cyan-950 flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass-btn-secondary active:scale-95 transition-transform"
+                >
+                  <RefreshCw size={12} className={cn(isGenerating && 'animate-spin')} />
+                  Ganti Kode Akses Baru
+                </button>
               </div>
             </motion.div>
           )}

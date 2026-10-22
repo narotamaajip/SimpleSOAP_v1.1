@@ -24,28 +24,68 @@ export function PatientListView({
 
   const handleRedeem = async (e) => {
     e.preventDefault();
-    if (!redeemCode.trim()) return;
+    const cleanCode = redeemCode.trim().toUpperCase().replace(/\s/g, '');
+    if (!cleanCode) return;
+
+    if (cleanCode.length < 4) {
+      setRedeemStatus({ type: 'error', message: 'Kode akses minimal 4-6 karakter.' });
+      return;
+    }
+
     setIsRedeeming(true);
-    setRedeemStatus({ type: 'info', message: 'Mencari pasien...' });
+    setRedeemStatus({ type: 'info', message: 'Mencari data pasien...' });
 
     try {
-      const result = await findPatientByShareCode(redeemCode);
+      const result = await findPatientByShareCode(cleanCode);
       if (!result.found) {
-        setRedeemStatus({ type: 'error', message: 'Kode tidak ditemukan.' });
-      } else if (result.data.accessList?.includes(auth.currentUser.uid)) {
-        setRedeemStatus({ type: 'error', message: 'Anda sudah memiliki akses ke pasien ini.' });
-      } else {
-        await addToAccessList(result.patientId, auth.currentUser.uid);
-        setRedeemStatus({ type: 'success', message: 'Berhasil! Pasien ditambahkan.' });
-        setRedeemCode('');
-        setTimeout(() => {
-          setShowRedeem(false);
-          setRedeemStatus({ type: '', message: '' });
-        }, 2000);
+        setRedeemStatus({
+          type: 'error',
+          message: 'Kode tidak ditemukan. Pastikan kode 6 digit sudah tepat.'
+        });
+        return;
       }
+
+      const patientName = result.data?.patientName || 'Pasien';
+
+      // 1. Check if user is the owner
+      if (result.data?.ownerId && result.data.ownerId === auth.currentUser?.uid) {
+        setRedeemStatus({
+          type: 'info',
+          message: `Ini adalah pasien Anda sendiri (${patientName}).`
+        });
+        return;
+      }
+
+      // 2. Check if user already has access to this patient
+      const alreadyHasAccess = (patients || []).some((p) => p.id === result.patientId);
+      if (alreadyHasAccess) {
+        setRedeemStatus({
+          type: 'info',
+          message: `Anda sudah memiliki akses ke ${patientName}.`
+        });
+        return;
+      }
+
+      // 3. Add current user UID to patient's accessList in Firestore
+      await addToAccessList(result.patientId, auth.currentUser.uid);
+      setRedeemStatus({
+        type: 'success',
+        message: `Berhasil! Akses rekam medis ${patientName} telah ditambahkan.`
+      });
+      setRedeemCode('');
+      setTimeout(() => {
+        setShowRedeem(false);
+        setRedeemStatus({ type: '', message: '' });
+      }, 2200);
     } catch (err) {
-      console.error(err);
-      setRedeemStatus({ type: 'error', message: 'Terjadi kesalahan sistem.' });
+      console.error('Error redeeming patient code:', err);
+      const isPermission = err.code === 'permission-denied';
+      setRedeemStatus({
+        type: 'error',
+        message: isPermission
+          ? 'Akses ditolak. Kode sudah tidak berlaku atau kadaluarsa.'
+          : 'Gagal menghubungkan pasien. Silakan periksa koneksi internet Anda.'
+      });
     } finally {
       setIsRedeeming(false);
     }
@@ -127,8 +167,9 @@ export function PatientListView({
                   <input
                     type="text"
                     placeholder="Contoh: X7A9KQ"
+                    maxLength={6}
                     value={redeemCode}
-                    onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
+                    onChange={(e) => setRedeemCode(e.target.value.toUpperCase().replace(/\s/g, ''))}
                     className="flex-1 p-2.5 rounded-xl glass-input text-sm font-mono font-bold tracking-widest uppercase text-slate-800"
                   />
                   <button

@@ -22,6 +22,7 @@ import {
   where,
   serverTimestamp,
   arrayUnion,
+  arrayRemove,
   deleteDoc,
   getDocs
 } from 'firebase/firestore';
@@ -381,14 +382,24 @@ export async function updateSoapEntry(patientId, editingSoapId, updatedSoapData,
 // ---------------------------------------------------------------------------
 // generateShareCode
 // Generates a cryptographically secure 6-char code and registers in shareCodes collection.
+// If previousCode is provided, cleanly removes the old shareCode document.
 // ---------------------------------------------------------------------------
-export async function generateShareCode(patientId, patientName, ownerId) {
+export async function generateShareCode(patientId, patientName, ownerId, previousCode) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // excludes confusable chars O,0,I,1
   const randomBytes = new Uint8Array(6);
   crypto.getRandomValues(randomBytes);
   const newCode = Array.from(randomBytes).map(b => chars[b % chars.length]).join('');
 
-  // 1. Register in dedicated shareCodes collection
+  // 1. If previous code existed, clean it up from shareCodes collection
+  if (previousCode && previousCode !== newCode) {
+    try {
+      await deleteDoc(doc(db, SHARE_CODES_COL, previousCode.trim().toUpperCase()));
+    } catch (e) {
+      console.warn('Could not clean up previous shareCode document:', e);
+    }
+  }
+
+  // 2. Register in dedicated shareCodes collection
   await setDoc(doc(db, SHARE_CODES_COL, newCode), {
     patientId,
     patientName: patientName || 'Pasien',
@@ -397,9 +408,53 @@ export async function generateShareCode(patientId, patientName, ownerId) {
     localTimestamp: Date.now()
   });
 
-  // 2. Update patient document with shareCode
+  // 3. Update patient document with shareCode
   await updateDoc(doc(db, PATIENTS_COL, patientId), { shareCode: newCode });
   return newCode;
+}
+
+// ---------------------------------------------------------------------------
+// ensureShareCodeRegistered
+// Guarantees that an existing shareCode on a patient is registered in the
+// shareCodes collection (fixes older patients created before shareCodes was introduced).
+// ---------------------------------------------------------------------------
+export async function ensureShareCodeRegistered(patientId, patientName, ownerId, existingCode) {
+  if (!existingCode || typeof existingCode !== 'string') return null;
+  const cleanCode = existingCode.trim().toUpperCase();
+  if (cleanCode.length < 4) return null;
+
+  try {
+    const codeRef = doc(db, SHARE_CODES_COL, cleanCode);
+    const snap = await getDoc(codeRef);
+    if (!snap.exists()) {
+      await setDoc(codeRef, {
+        patientId,
+        patientName: patientName || 'Pasien',
+        ownerId: ownerId || null,
+        createdAt: serverTimestamp(),
+        localTimestamp: Date.now()
+      });
+    }
+    return cleanCode;
+  } catch (err) {
+    console.warn('ensureShareCodeRegistered warning:', err);
+    return cleanCode;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// revokeShareCode
+// Inactivates an existing share code so no new doctors can use it.
+// ---------------------------------------------------------------------------
+export async function revokeShareCode(patientId, existingCode) {
+  if (existingCode) {
+    try {
+      await deleteDoc(doc(db, SHARE_CODES_COL, existingCode.trim().toUpperCase()));
+    } catch (e) {
+      console.warn('Could not delete revoked share code from collection:', e);
+    }
+  }
+  return updateDoc(doc(db, PATIENTS_COL, patientId), { shareCode: null });
 }
 
 // ---------------------------------------------------------------------------
@@ -413,39 +468,34 @@ export async function addToAccessList(patientId, userId) {
 }
 
 // ---------------------------------------------------------------------------
+// removeFromAccessList
+// Collaborator leaves a patient: removes user UID from accessList via arrayRemove.
+// ---------------------------------------------------------------------------
+export async function removeFromAccessList(patientId, userId) {
+  return updateDoc(doc(db, PATIENTS_COL, patientId), {
+    accessList: arrayRemove(userId)
+  });
+}
+
+// ---------------------------------------------------------------------------
 // findPatientByShareCode
-// First checks shareCodes collection (open to all authenticated doctors),
-// with fallback to patients collection for legacy codes.
+// Looks up a 6-digit code in the shareCodes collection (open to all doctors via getDoc).
 // ---------------------------------------------------------------------------
 export async function findPatientByShareCode(shareCode) {
+  if (!shareCode || typeof shareCode !== 'string') return { found: false };
   const cleanCode = shareCode.trim().toUpperCase();
+  if (cleanCode.length < 4) return { found: false, reason: 'invalid_format' };
 
   try {
-    // 1. Direct lookup in shareCodes collection
     const codeDoc = await getDoc(doc(db, SHARE_CODES_COL, cleanCode));
     if (codeDoc.exists()) {
       const codeData = codeDoc.data();
       const patientId = codeData.patientId;
-      // Fetch minimal patient info or return codeData
       return { found: true, patientId, data: codeData };
     }
   } catch (err) {
     console.warn('Lookup in shareCodes collection error:', err);
-  }
-
-  // 2. Fallback query on patients collection
-  try {
-    const q = query(
-      collection(db, PATIENTS_COL),
-      where('shareCode', '==', cleanCode)
-    );
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      const first = snap.docs[0];
-      return { found: true, patientId: first.id, data: first.data() };
-    }
-  } catch (err) {
-    console.warn('Fallback patient query error:', err);
+    return { found: false, error: err };
   }
 
   return { found: false };
