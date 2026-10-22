@@ -3,10 +3,12 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, User, AlertTriangle, Activity, Pencil, Send, X, ListRestart, Trash2, Copy, Check, RefreshCw, LogOut } from 'lucide-react';
 import { generateShareCode, ensureShareCodeRegistered, removeFromAccessList, subscribeToSoapNotes, mergeSoapHistory } from '../lib/patients';
 import { auth } from '../lib/firebase';
+import { useDialog } from '../context/DialogContext';
 import { SoapItem } from '../components/SoapItem';
 import { cn } from '../utils/cn';
 
 export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEditPatient, onDeletePatient }) {
+  const { confirm, alert: showAlert } = useDialog();
   const isPending = !patient.isFollowedUp && patient.status !== 'PULANG';
   const isDischarged = patient.status === 'PULANG';
   const isOwner = !patient.ownerId || patient.ownerId === auth.currentUser?.uid;
@@ -60,16 +62,27 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
       }
     } catch (err) {
       console.error('Error sharing patient code:', err);
-      alert('Gagal memproses kode unik pasien. Silakan coba lagi.');
+      showAlert({
+        title: 'Gagal Memproses Kode',
+        message: 'Gagal memproses kode unik pasien. Silakan coba beberapa saat lagi.',
+        variant: 'danger'
+      });
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleRegenerateCode = async () => {
-    if (!window.confirm('Buat kode akses baru untuk pasien ini? Kode lama tidak akan dapat digunakan lagi oleh rekan baru.')) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Buat Kode Akses Baru?',
+      message: 'Kode lama tidak akan dapat digunakan lagi oleh rekan baru. Lanjutkan?',
+      confirmText: 'Buat Kode Baru',
+      cancelText: 'Batal',
+      variant: 'primary',
+      icon: 'refresh'
+    });
+    if (!ok) return;
+
     setIsGenerating(true);
     try {
       const newCode = await generateShareCode(patient.id, patient.name, auth.currentUser?.uid, shareCode);
@@ -78,34 +91,57 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
       setIsCopied(false);
     } catch (err) {
       console.error('Error regenerating share code:', err);
-      alert('Gagal membuat kode baru.');
+      showAlert({
+        title: 'Gagal Membuat Kode',
+        message: 'Gagal membuat kode akses baru. Silakan periksa koneksi Anda.',
+        variant: 'danger'
+      });
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleLeavePatient = async () => {
-    if (!window.confirm(`Lepas akses rekam medis pasien "${patient.name}" dari daftar Anda? Pasien tidak akan muncul lagi di akun Anda.`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Lepas Akses Pasien?',
+      message: `Lepas akses rekam medis pasien "${patient.name}" dari daftar Anda? Pasien tidak akan muncul lagi di akun Anda.`,
+      confirmText: 'Lepas Akses',
+      cancelText: 'Batal',
+      variant: 'danger',
+      icon: 'logout'
+    });
+    if (!ok) return;
+
     setIsLeaving(true);
     try {
       await removeFromAccessList(patient.id, auth.currentUser?.uid);
       onBack();
     } catch (err) {
       console.error('Error leaving patient:', err);
-      alert('Gagal melepas akses pasien.');
+      showAlert({
+        title: 'Gagal Melepas Akses',
+        message: 'Terjadi kendala saat melepas akses pasien. Silakan coba lagi.',
+        variant: 'danger'
+      });
     } finally {
       setIsLeaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (window.confirm(`Pindahkan data pasien "${patient.name}" ke Tempat Sampah? Anda dapat memulihkannya nanti via menu Pengaturan.`)) {
-      if (onDeletePatient) {
-        const ok = await onDeletePatient(patient.id);
-        if (ok) onBack();
-      }
+    const ok = await confirm({
+      title: 'Pindahkan ke Tempat Sampah?',
+      message: `Pindahkan data pasien "${patient.name}" ke Tempat Sampah? Anda dapat memulihkannya nanti via menu Pengaturan.`,
+      confirmText: 'Pindahkan ke Sampah',
+      cancelText: 'Batal',
+      variant: 'danger',
+      icon: 'trash'
+    });
+    if (!ok) return;
+
+    if (onDeletePatient) {
+      const isDeleted = await onDeletePatient(patient.id);
+      if (isDeleted) onBack();
     }
   };
 

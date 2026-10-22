@@ -10,7 +10,7 @@ import { getFriendlyErrorMessage } from '../utils/friendlyError';
  *   patients — array of patient objects (sorted by createdAt desc)
  *   loading  — true until first snapshot arrives
  */
-export function usePatients(user, authView) {
+export function usePatients(user, authView, onError) {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -26,13 +26,17 @@ export function usePatients(user, authView) {
       (err) => {
         console.error('Firestore Error:', err.code, err.message);
         const friendlyMsg = getFriendlyErrorMessage(err, 'Gagal memuat data pasien. Silakan periksa koneksi internet Anda.');
-        alert(friendlyMsg);
+        if (onError) {
+          onError(friendlyMsg);
+        } else {
+          console.warn('Patient listener notice:', friendlyMsg);
+        }
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [user?.uid, authView]);
+  }, [user?.uid, authView, onError]);
 
   return { patients, loading };
 }

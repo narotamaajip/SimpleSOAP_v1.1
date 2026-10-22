@@ -10,9 +10,12 @@ import '@fontsource/inter/latin-900.css';
 import 'driver.js/dist/driver.css';
 import './index.css';
 import App from './App.jsx';
+import { DialogProvider } from './context/DialogContext.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <DialogProvider>
+      <App />
+    </DialogProvider>
   </React.StrictMode>,
 );

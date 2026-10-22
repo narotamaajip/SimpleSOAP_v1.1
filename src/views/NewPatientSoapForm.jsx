@@ -5,6 +5,7 @@ import { AccordionSection } from '../components/ui/AccordionSection';
 import { VitalInput } from '../components/ui/VitalInput';
 import { GlassSelect } from '../components/ui/GlassSelect';
 import { AmbientBackground } from '../components/ui/AmbientBackground';
+import { useDialog } from '../context/DialogContext';
 import { cn } from '../utils/cn';
 
 const SOAP_TEMPLATES = {
@@ -31,6 +32,7 @@ const SEX_OPTIONS = [
 ];
 
 export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }) {
+  const { confirm } = useDialog();
   const [activeSection, setActiveSection] = useState('data');
   const [patientData, setPatientData] = useState(() => {
     if (isTourActive) {
@@ -181,9 +183,16 @@ export function NewPatientSoapForm({ onBack, onSave, isTourActive, defaultDpjp }
     );
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
     if (isDirty()) {
-      if (window.confirm('Ada data pasien yang belum disimpan. Yakin ingin menutup form?')) {
+      const ok = await confirm({
+        title: 'Tutup Form Pasien?',
+        message: 'Ada data pasien yang belum disimpan. Yakin ingin menutup form?',
+        confirmText: 'Tutup Form',
+        cancelText: 'Lanjut Mengisi',
+        variant: 'warning'
+      });
+      if (ok) {
         onBack();
       }
     } else {

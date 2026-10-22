@@ -15,6 +15,7 @@ import {
 } from './lib/patients';
 import { useAuth } from './hooks/useAuth';
 import { usePatients } from './hooks/usePatients';
+import { useDialog } from './context/DialogContext';
 import { getFormattedDate, getFormattedTime } from './utils/timezone';
 
 // --- UI Components ---
@@ -44,8 +45,11 @@ function AuthFallback() {
 }
 
 export default function SoapApp() {
+  const { confirm, alert: showAlert } = useDialog();
   const { user, authView, setAuthView, doctorProfile, setDoctorProfile } = useAuth();
-  const { patients, loading } = usePatients(user, authView);
+  const { patients, loading } = usePatients(user, authView, (msg) =>
+    showAlert({ title: 'Koneksi Terputus', message: msg, variant: 'warning' })
+  );
 
   const [activeTab, setActiveTab] = useState('beranda');
   const [patientFilterCategory, setPatientFilterCategory] = useState('AKTIF');
@@ -288,7 +292,11 @@ export default function SoapApp() {
       setEditingSoapId(null);
     } catch (error) {
       console.error('Error updating SOAP:', error);
-      alert('Gagal menyimpan SOAP. Silakan periksa koneksi Anda.');
+      showAlert({
+        title: 'Gagal Menyimpan',
+        message: 'Gagal menyimpan catatan SOAP. Silakan periksa koneksi Anda.',
+        variant: 'danger'
+      });
     }
   };
 
@@ -332,10 +340,18 @@ export default function SoapApp() {
 
     const result = await deletePatient(patientId, patient, user.uid);
     if (result.success) {
-      alert('Pasien berhasil dipindahkan ke Tempat Sampah.');
+      showAlert({
+        title: 'Tempat Sampah',
+        message: `Data pasien "${patient.name}" berhasil dipindahkan ke Tempat Sampah.`,
+        variant: 'success'
+      });
       return true;
     } else {
-      alert(result.message);
+      showAlert({
+        title: 'Gagal Menghapus',
+        message: result.message || 'Terjadi kesalahan.',
+        variant: 'danger'
+      });
       return false;
     }
   };
@@ -343,10 +359,18 @@ export default function SoapApp() {
   const handleRestorePatient = async (patientId) => {
     const result = await restorePatient(patientId, user.uid);
     if (result.success) {
-      alert('Pasien berhasil dipulihkan ke daftar aktif.');
+      showAlert({
+        title: 'Pasien Dipulihkan',
+        message: 'Pasien berhasil dipulihkan kembali ke daftar aktif.',
+        variant: 'success'
+      });
       return true;
     } else {
-      alert(result.message);
+      showAlert({
+        title: 'Gagal Memulihkan',
+        message: result.message || 'Terjadi kesalahan.',
+        variant: 'danger'
+      });
       return false;
     }
   };
@@ -357,24 +381,39 @@ export default function SoapApp() {
 
     const result = await permanentDeletePatient(patientId, patient, user.uid);
     if (result.success) {
-      alert('Data pasien berhasil dimusnahkan secara permanen.');
+      showAlert({
+        title: 'Data Dimusnahkan',
+        message: 'Data pasien berhasil dimusnahkan secara permanen dari server.',
+        variant: 'success'
+      });
       return true;
     } else {
-      alert(result.message);
+      showAlert({
+        title: 'Gagal Memusnahkan',
+        message: result.message || 'Terjadi kesalahan.',
+        variant: 'danger'
+      });
       return false;
     }
   };
 
-  const handleTabClick = (tab) => {
+  const handleTabClick = async (tab) => {
     if (isAddingNewPatient || isAddingSoap) {
-      if (window.confirm('Ada data yang belum disimpan. Yakin ingin pindah halaman?')) {
-        setIsAddingNewPatient(false);
-        setIsAddingSoap(false);
-        setSelectedPatientId(null);
-        setActiveTab(tab);
-        if (tourStep === 1 && tab === 'pasien') {
-          setTourStep(2);
-        }
+      const ok = await confirm({
+        title: 'Tinggalkan Halaman?',
+        message: 'Ada perubahan data yang belum disimpan. Yakin ingin pindah halaman?',
+        confirmText: 'Pindah Halaman',
+        cancelText: 'Tetap di Sini',
+        variant: 'warning'
+      });
+      if (!ok) return;
+
+      setIsAddingNewPatient(false);
+      setIsAddingSoap(false);
+      setSelectedPatientId(null);
+      setActiveTab(tab);
+      if (tourStep === 1 && tab === 'pasien') {
+        setTourStep(2);
       }
     } else {
       setSelectedPatientId(null);

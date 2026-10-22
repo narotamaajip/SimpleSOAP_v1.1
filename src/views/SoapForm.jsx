@@ -4,6 +4,7 @@ import { X, FileText, CheckCircle2 } from 'lucide-react';
 import { AccordionSection } from '../components/ui/AccordionSection';
 import { VitalInput } from '../components/ui/VitalInput';
 import { AmbientBackground } from '../components/ui/AmbientBackground';
+import { useDialog } from '../context/DialogContext';
 
 const SOAP_TEMPLATES = {
   stabil: {
@@ -53,6 +54,7 @@ function extractCleanO(item) {
 }
 
 export function SoapForm({ patient, notes, editingSoapId, onBack, onSave }) {
+  const { confirm, alert: showAlert } = useDialog();
   const [activeSection, setActiveSection] = useState('s');
   const [isDischarged, setIsDischarged] = useState(patient.status === 'PULANG');
   const [hasDraftRestored, setHasDraftRestored] = useState(false);
@@ -137,9 +139,16 @@ export function SoapForm({ patient, notes, editingSoapId, onBack, onSave }) {
     );
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
     if (isDirty()) {
-      if (window.confirm('Ada draf catatan yang belum disimpan. Yakin ingin menutup form?')) {
+      const ok = await confirm({
+        title: 'Tutup Catatan SOAP?',
+        message: 'Ada draf catatan yang belum disimpan. Yakin ingin menutup form?',
+        confirmText: 'Tutup Form',
+        cancelText: 'Lanjut Mengisi',
+        variant: 'warning'
+      });
+      if (ok) {
         onBack();
       }
     } else {
@@ -167,12 +176,24 @@ export function SoapForm({ patient, notes, editingSoapId, onBack, onSave }) {
           p: prevItem.p && prevItem.p !== '-' ? prevItem.p : '',
           i: prevItem.i && prevItem.i !== '-' ? prevItem.i : ''
         });
-        alert('SOAP sebelumnya berhasil disalin.');
+        showAlert({
+          title: 'SOAP Tersalin',
+          message: 'Catatan SOAP sebelumnya berhasil disalin ke form.',
+          variant: 'success'
+        });
       } else {
-        alert('Tidak ada riwayat SOAP sebelumnya untuk disalin.');
+        showAlert({
+          title: 'Tidak Ada Riwayat',
+          message: 'Tidak ada riwayat SOAP sebelumnya untuk disalin.',
+          variant: 'warning'
+        });
       }
     } else {
-      alert('Tidak ada riwayat SOAP sebelumnya.');
+      showAlert({
+        title: 'Tidak Ada Riwayat',
+        message: 'Tidak ada riwayat SOAP sebelumnya untuk pasien ini.',
+        variant: 'warning'
+      });
     }
   };
 
@@ -194,7 +215,11 @@ export function SoapForm({ patient, notes, editingSoapId, onBack, onSave }) {
       Object.values(soap.vitals).some((v) => (v || '').trim());
 
     if (!hasAnyContent) {
-      alert('Mohon isi minimal salah satu komponen catatan SOAP atau tanda vital sebelum menyimpan.');
+      showAlert({
+        title: 'Catatan Belum Lengkap',
+        message: 'Mohon isi minimal salah satu komponen catatan SOAP atau tanda vital sebelum menyimpan.',
+        variant: 'warning'
+      });
       return;
     }
 

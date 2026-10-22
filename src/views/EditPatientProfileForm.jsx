@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { X, AlertCircle } from 'lucide-react';
 import { GlassSelect } from '../components/ui/GlassSelect';
 import { AmbientBackground } from '../components/ui/AmbientBackground';
+import { useDialog } from '../context/DialogContext';
 import { cn } from '../utils/cn';
 
 const SEX_OPTIONS = [
@@ -11,6 +12,7 @@ const SEX_OPTIONS = [
 ];
 
 export function EditPatientProfileForm({ patient, onBack, onSave }) {
+  const { confirm } = useDialog();
   const [patientData, setPatientData] = useState({
     name: patient.name || '',
     rm: patient.rm || '',
@@ -80,9 +82,16 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
     );
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
     if (isDirty()) {
-      if (window.confirm('Ada perubahan profil yang belum disimpan. Yakin ingin keluar?')) {
+      const ok = await confirm({
+        title: 'Batal Edit Profil?',
+        message: 'Ada perubahan data pasien yang belum disimpan. Yakin ingin keluar?',
+        confirmText: 'Keluar',
+        cancelText: 'Lanjut Mengedit',
+        variant: 'warning'
+      });
+      if (ok) {
         onBack();
       }
     } else {

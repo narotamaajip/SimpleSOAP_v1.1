@@ -13,6 +13,7 @@ import { setDoc, doc, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import { GlassSelect } from '../components/ui/GlassSelect';
+import { useDialog } from '../context/DialogContext';
 
 export function SettingsView({
   doctorProfile,
@@ -24,6 +25,7 @@ export function SettingsView({
   onPermanentDeletePatient,
   onStartTour
 }) {
+  const { confirm, alert: showAlert, prompt: showPrompt } = useDialog();
   const [localProfile, setLocalProfile] = useState(doctorProfile);
   const [selectedPatientToDelete, setSelectedPatientToDelete] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -55,7 +57,15 @@ export function SettingsView({
   }, [activePatients]);
 
   const handleLogout = async () => {
-    if (window.confirm('Yakin ingin keluar dari akun?')) {
+    const ok = await confirm({
+      title: 'Keluar dari Akun?',
+      message: 'Anda harus masuk kembali untuk mengakses data rekam medis pasien.',
+      confirmText: 'Keluar Akun',
+      cancelText: 'Batal',
+      variant: 'warning',
+      icon: 'logout'
+    });
+    if (ok) {
       await signOut(auth);
     }
   };
@@ -65,10 +75,18 @@ export function SettingsView({
       const docRef = doc(db, 'doctors', auth.currentUser.uid);
       await setDoc(docRef, localProfile, { merge: true });
       setDoctorProfile(localProfile);
-      alert('Profil berhasil disimpan!');
+      showAlert({
+        title: 'Tersimpan',
+        message: 'Profil dokter berhasil diperbarui!',
+        variant: 'success'
+      });
     } catch (err) {
       console.error(err);
-      alert('Gagal menyimpan profil.');
+      showAlert({
+        title: 'Gagal Menyimpan',
+        message: 'Gagal menyimpan profil dokter. Silakan periksa koneksi Anda.',
+        variant: 'danger'
+      });
     }
   };
 
@@ -77,11 +95,16 @@ export function SettingsView({
     const patient = patients.find((p) => p.id === selectedPatientToDelete);
     if (!patient) return;
 
-    if (
-      window.confirm(
-        `Pindahkan data pasien "${patient.name}" ke Tempat Sampah? Pasien akan disembunyikan dari daftar aktif dan dapat dipulihkan kapan saja.`
-      )
-    ) {
+    const ok = await confirm({
+      title: 'Pindahkan ke Tempat Sampah?',
+      message: `Pindahkan data pasien "${patient.name}" ke Tempat Sampah? Pasien akan disembunyikan dari daftar aktif dan dapat dipulihkan kapan saja.`,
+      confirmText: 'Pindahkan ke Sampah',
+      cancelText: 'Batal',
+      variant: 'danger',
+      icon: 'trash'
+    });
+
+    if (ok) {
       const success = await onDeletePatient(selectedPatientToDelete);
       if (success) {
         setSelectedPatientToDelete('');
@@ -90,17 +113,31 @@ export function SettingsView({
   };
 
   const handleRestore = async (patientId, patientName) => {
-    if (window.confirm(`Pulihkan pasien "${patientName}" kembali ke daftar aktif?`)) {
-      if (onRestorePatient) {
-        await onRestorePatient(patientId);
-      }
+    const ok = await confirm({
+      title: 'Pulihkan Pasien?',
+      message: `Pulihkan data pasien "${patientName}" kembali ke daftar pasien aktif?`,
+      confirmText: 'Pulihkan Pasien',
+      cancelText: 'Batal',
+      variant: 'primary'
+    });
+
+    if (ok && onRestorePatient) {
+      await onRestorePatient(patientId);
     }
   };
 
   const handlePermanentDelete = async (patientId, patientName) => {
-    const confirmation = window.prompt(
-      `PERINGATAN KRITIS: Seluruh rekam medis pasien "${patientName}" akan dimusnahkan permanen dari cloud server dan TIDAK DAPAT dipulihkan.\n\nKetik "HAPUS" untuk melanjutkan:`
-    );
+    const confirmation = await showPrompt({
+      title: 'Musnahkan Data Pasien?',
+      message: `PERINGATAN KRITIS: Seluruh rekam medis pasien "${patientName}" akan dimusnahkan permanen dari server dan TIDAK DAPAT dipulihkan.`,
+      placeholder: 'Ketik HAPUS untuk konfirmasi',
+      matchText: 'HAPUS',
+      confirmText: 'Hapus Permanen',
+      cancelText: 'Batal',
+      variant: 'danger',
+      icon: 'trash'
+    });
+
     if (confirmation === 'HAPUS') {
       if (onPermanentDeletePatient) {
         await onPermanentDeletePatient(patientId);
@@ -109,9 +146,15 @@ export function SettingsView({
   };
 
   const handleDeleteAccount = async () => {
-    const confirmInput = window.prompt(
-      'PERINGATAN AKUN: Seluruh profil dokter dan akun login Anda akan dihapus permanen sesuai Kebijakan Google Play.\n\nKetik "HAPUS AKUN" untuk mengonfirmasi:'
-    );
+    const confirmInput = await showPrompt({
+      title: 'Hapus Akun Pengguna?',
+      message: 'PERINGATAN AKUN: Seluruh profil dokter dan akun login Anda akan dihapus permanen sesuai Kebijakan Google Play.',
+      placeholder: 'Ketik HAPUS AKUN untuk konfirmasi',
+      matchText: 'HAPUS AKUN',
+      confirmText: 'Hapus Akun',
+      cancelText: 'Batal',
+      variant: 'danger'
+    });
 
     if (confirmInput === 'HAPUS AKUN') {
       setIsDeletingAccount(true);
@@ -128,9 +171,14 @@ export function SettingsView({
             if (isGoogle) {
               await reauthenticateWithPopup(user, new GoogleAuthProvider());
             } else if (user.email) {
-              const pwd = window.prompt(
-                'Demi keamanan, masukkan kata sandi akun Anda untuk mengonfirmasi penghapusan akun:'
-              );
+              const pwd = await showPrompt({
+                title: 'Konfirmasi Kata Sandi',
+                message: 'Demi keamanan, masukkan kata sandi akun Anda untuk mengonfirmasi penghapusan akun:',
+                inputType: 'password',
+                placeholder: 'Masukkan kata sandi',
+                confirmText: 'Verifikasi',
+                cancelText: 'Batal'
+              });
               if (!pwd) {
                 setIsDeletingAccount(false);
                 return;
@@ -148,14 +196,26 @@ export function SettingsView({
             console.warn('Cache cleanup notice:', e);
           }
           await deleteUser(user);
-          alert('Akun Anda berhasil dihapus.');
+          showAlert({
+            title: 'Akun Terhapus',
+            message: 'Akun Anda berhasil dihapus dari SimpleSOAP.',
+            variant: 'success'
+          });
         }
       } catch (err) {
         console.error('Error deleting user account:', err);
         if (err.code === 'auth/requires-recent-login') {
-          alert('Demi keamanan, silakan keluar akun dan masuk kembali sebelum melakukan penghapusan akun.');
+          showAlert({
+            title: 'Perlu Masuk Kembali',
+            message: 'Demi keamanan, silakan keluar akun dan masuk kembali sebelum melakukan penghapusan akun.',
+            variant: 'warning'
+          });
         } else {
-          alert(getFriendlyErrorMessage(err, 'Gagal menghapus akun. Pastikan kata sandi benar dan coba lagi.'));
+          showAlert({
+            title: 'Gagal Menghapus Akun',
+            message: getFriendlyErrorMessage(err, 'Gagal menghapus akun. Pastikan kata sandi benar dan coba lagi.'),
+            variant: 'danger'
+          });
         }
       } finally {
         setIsDeletingAccount(false);

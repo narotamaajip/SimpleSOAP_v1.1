@@ -4,8 +4,10 @@ import { Activity, ShieldCheck } from 'lucide-react';
 import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { AmbientBackground } from '../components/ui/AmbientBackground';
+import { useDialog } from '../context/DialogContext';
 
 export default function OnboardingView({ user, onComplete }) {
+  const { alert: showAlert } = useDialog();
   const [name, setName] = useState('');
   const [credentials, setCredentials] = useState('');
   const [specialty, setSpecialty] = useState('');
@@ -15,15 +17,27 @@ export default function OnboardingView({ user, onComplete }) {
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (!name.trim()) {
-      alert('Mohon lengkapi Nama Anda.');
+      showAlert({
+        title: 'Nama Wajib Diisi',
+        message: 'Mohon lengkapi Nama Anda untuk identitas rekam medis.',
+        variant: 'warning'
+      });
       return;
     }
     if (!credentials.trim()) {
-      alert('Mohon cantumkan Nomor SIP atau STR Anda.');
+      showAlert({
+        title: 'SIP / STR Diperlukan',
+        message: 'Mohon cantumkan Nomor SIP atau STR Anda.',
+        variant: 'warning'
+      });
       return;
     }
     if (!hasAcceptedDisclaimer) {
-      alert('Mohon setujui Pernyataan Tanggung Jawab Medis untuk melanjutkan.');
+      showAlert({
+        title: 'Pernyataan Tanggung Jawab',
+        message: 'Mohon setujui Pernyataan Tanggung Jawab Medis untuk melanjutkan pendaftaran.',
+        variant: 'warning'
+      });
       return;
     }
 
@@ -42,7 +56,11 @@ export default function OnboardingView({ user, onComplete }) {
       onComplete(profile);
     } catch (err) {
       console.error(err);
-      alert('Gagal menyimpan profil. Pastikan koneksi stabil.');
+      showAlert({
+        title: 'Gagal Menyimpan',
+        message: 'Gagal menyimpan profil dokter. Pastikan koneksi internet stabil.',
+        variant: 'danger'
+      });
       setIsSubmitting(false);
     }
   };
