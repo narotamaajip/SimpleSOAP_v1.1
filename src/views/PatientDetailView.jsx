@@ -5,6 +5,7 @@ import { generateShareCode, ensureShareCodeRegistered, removeFromAccessList, sub
 import { auth } from '../lib/firebase';
 import { useDialog } from '../context/DialogContext';
 import { SoapItem } from '../components/SoapItem';
+import { track } from '../lib/analytics';
 import { cn } from '../utils/cn';
 
 export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEditPatient, onDeletePatient }) {
@@ -59,6 +60,7 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
         const newCode = await generateShareCode(patient.id, patient.name, auth.currentUser?.uid);
         setShareCode(newCode);
         setShowCode(true);
+        track('share_code_created');
       }
     } catch (err) {
       console.error('Error sharing patient code:', err);
@@ -89,6 +91,7 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
       setShareCode(newCode);
       setShowCode(true);
       setIsCopied(false);
+      track('share_code_created');
     } catch (err) {
       console.error('Error regenerating share code:', err);
       showAlert({

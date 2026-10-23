@@ -105,7 +105,7 @@ export function EditPatientProfileForm({ patient, onBack, onSave }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 24, scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.8 }}
-      className="flex-1 flex flex-col h-full liquid-canvas overflow-hidden absolute inset-0 z-50"
+      className="absolute inset-0 z-50 flex flex-col w-full h-full liquid-canvas overflow-hidden"
     >
       <AmbientBackground />
 

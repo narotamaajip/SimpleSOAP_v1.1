@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X, FileText, CheckCircle2 } from 'lucide-react';
+import { X, FileText, CheckCircle2, Camera, Sparkles, Lock, Trash2 } from 'lucide-react';
 import { AccordionSection } from '../components/ui/AccordionSection';
 import { VitalInput } from '../components/ui/VitalInput';
 import { AmbientBackground } from '../components/ui/AmbientBackground';
@@ -53,11 +53,21 @@ function extractCleanO(item) {
   return raw;
 }
 
-export function SoapForm({ patient, notes, editingSoapId, onBack, onSave }) {
+export function SoapForm({
+  patient,
+  notes,
+  editingSoapId,
+  onBack,
+  onSave,
+  entitlement = { plan: 'free' },
+  onOpenPaywall
+}) {
   const { confirm, alert: showAlert } = useDialog();
   const [activeSection, setActiveSection] = useState('s');
   const [isDischarged, setIsDischarged] = useState(patient.status === 'PULANG');
   const [hasDraftRestored, setHasDraftRestored] = useState(false);
+  const [photos, setPhotos] = useState([]);
+  const fileInputRef = useRef(null);
 
   const [soap, setSoap] = useState({
     s: '',
@@ -254,7 +264,7 @@ export function SoapForm({ patient, notes, editingSoapId, onBack, onSave }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 24, scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.8 }}
-      className="flex-1 flex flex-col h-full liquid-canvas overflow-hidden absolute inset-0 z-50"
+      className="absolute inset-0 z-50 flex flex-col w-full h-full liquid-canvas overflow-hidden"
     >
       <AmbientBackground />
 
@@ -372,6 +382,76 @@ export function SoapForm({ patient, notes, editingSoapId, onBack, onSave }) {
                   value={soap.o}
                   onChange={(e) => setSoap({ ...soap, o: e.target.value })}
                 />
+              </div>
+
+              {/* Foto Klinis Attachment */}
+              <div className="pt-1">
+                <div className="flex justify-between items-center mb-1.5">
+                  <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                    Foto Klinis (Luka, EKG, Lab, Ro)
+                  </p>
+                  {entitlement.plan !== 'pro' && (
+                    <span className="inline-flex items-center gap-1 text-[9px] font-extrabold text-teal-800 bg-teal-500/10 px-2 py-0.5 rounded-full border border-teal-200/50">
+                      <Lock size={10} /> Fitur Pro
+                    </span>
+                  )}
+                </div>
+
+                {photos.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2 mb-2.5">
+                    {photos.map((photo) => (
+                      <div key={photo.id} className="relative rounded-xl overflow-hidden border border-white/80 group">
+                        <img src={photo.url} alt={photo.name} className="w-full h-24 object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setPhotos(photos.filter((p) => p.id !== photo.id))}
+                          className="absolute top-1 right-1 p-1 bg-slate-900/70 hover:bg-rose-600 text-white rounded-full transition-colors"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (loadEvt) => {
+                        setPhotos([
+                          ...photos,
+                          {
+                            id: Date.now(),
+                            name: file.name,
+                            url: loadEvt.target.result
+                          }
+                        ]);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (entitlement.plan !== 'pro') {
+                      if (onOpenPaywall) onOpenPaywall('photo');
+                    } else {
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  className="w-full py-2.5 px-3 rounded-2xl glass-btn-secondary text-slate-700 text-xs font-bold flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <Camera size={14} className="text-teal-600" />
+                  <span>{photos.length > 0 ? '+ Tambah Foto Lain' : 'Unggah Foto Hasil / Klinis'}</span>
+                </button>
               </div>
             </div>
           </AccordionSection>

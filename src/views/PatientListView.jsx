@@ -5,6 +5,8 @@ import { auth } from '../lib/firebase';
 import { findPatientByShareCode, addToAccessList } from '../lib/patients';
 import { PatientCardDetailed } from '../components/PatientCardDetailed';
 import { GlassSelect } from '../components/ui/GlassSelect';
+import { PLANS_CONFIG } from '../config/plans.js';
+import { track } from '../lib/analytics.js';
 import { cn } from '../utils/cn';
 
 export function PatientListView({
@@ -15,13 +17,33 @@ export function PatientListView({
   setCategoryFilter,
   onSelectPatient,
   onAddPatientClick,
-  isTourActive
+  isTourActive,
+  entitlement = { plan: 'free' },
+  activeCountOverride = null,
+  onOpenPaywall
 }) {
   const [roomFilter, setRoomFilter] = useState('');
   const [showRedeem, setShowRedeem] = useState(false);
   const [redeemCode, setRedeemCode] = useState('');
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [redeemStatus, setRedeemStatus] = useState({ type: '', message: '' });
+
+  const actualActiveCount = useMemo(() => {
+    return patients.filter((p) => !p.isDeleted && p.status !== 'PULANG').length;
+  }, [patients]);
+  const activeCount = activeCountOverride !== null ? activeCountOverride : actualActiveCount;
+  const isFree = entitlement.plan === 'free';
+  const isAtLimit = isFree && activeCount >= PLANS_CONFIG.free.maxActivePatients;
+
+  const handleAddPatientTrigger = () => {
+    if (isAtLimit) {
+      if (onOpenPaywall) {
+        onOpenPaywall('patient_limit');
+      }
+      return;
+    }
+    onAddPatientClick();
+  };
 
   const handleRedeem = async (e) => {
     e.preventDefault();
@@ -69,6 +91,7 @@ export function PatientListView({
 
       // 3. Add current user UID to patient's accessList in Firestore
       await addToAccessList(result.patientId, auth.currentUser.uid);
+      track('share_code_redeemed');
       setRedeemStatus({
         type: 'success',
         message: `Berhasil! Akses rekam medis ${patientName} telah ditambahkan.`
@@ -280,18 +303,28 @@ export function PatientListView({
       <button
         id="tour-add-patient-btn"
         type="button"
-        onClick={onAddPatientClick}
+        onClick={handleAddPatientTrigger}
         onPointerDown={(e) => {
           if (isTourActive) {
-            onAddPatientClick();
+            handleAddPatientTrigger();
           }
         }}
         className={cn(
-          "absolute bottom-6 right-6 glass-btn-primary w-14 h-14 flex items-center justify-center rounded-full z-30 transition-transform active:scale-95",
+          "absolute bottom-6 right-6 glass-btn-primary w-14 h-14 flex items-center justify-center rounded-full z-30 transition-transform active:scale-95 shadow-xl",
           isTourActive && "ring-4 ring-cyan-400/60 shadow-xl shadow-cyan-500/40"
         )}
       >
         <Plus size={26} />
+        {isFree && activeCount >= 8 && (
+          <span
+            className={cn(
+              "absolute -top-1.5 -left-1 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold shadow-sm border border-white/60",
+              activeCount >= 10 ? "bg-rose-600 text-white" : "bg-amber-500 text-white"
+            )}
+          >
+            {activeCount}/10
+          </span>
+        )}
       </button>
     </motion.div>
   );

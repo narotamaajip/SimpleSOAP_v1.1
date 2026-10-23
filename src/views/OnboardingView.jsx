@@ -143,6 +143,11 @@ export default function OnboardingView({ user, onComplete }) {
             </label>
           </div>
 
+          {/* Anonymous Analytics Notice */}
+          <p className="text-[10px] text-slate-500 font-medium px-1 leading-relaxed">
+            Kami mengumpulkan statistik pemakaian anonim, tanpa data pasien, untuk memperbaiki app.
+          </p>
+
           <button
             type="submit"
             disabled={isSubmitting || !hasAcceptedDisclaimer}

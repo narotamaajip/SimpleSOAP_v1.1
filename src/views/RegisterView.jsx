@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Activity } from 'lucide-react';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { track } from '../lib/analytics.js';
 import { LogoIcon } from '../components/ui/Logo';
 import { AmbientBackground } from '../components/ui/AmbientBackground';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
@@ -17,6 +18,7 @@ export default function RegisterView({ onSwitch }) {
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
+      track('sign_up', { method: 'google' });
     } catch (err) {
       console.error(err);
       setError(getFriendlyErrorMessage(err, 'Gagal mendaftar dengan akun Google. Silakan coba lagi.'));

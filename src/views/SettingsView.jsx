@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Trash2, Sparkles, ChevronRight, RotateCcw, AlertOctagon, UserX } from 'lucide-react';
+import { Trash2, Sparkles, ChevronRight, RotateCcw, AlertOctagon, UserX, Shield } from 'lucide-react';
 import {
   signOut,
   deleteUser,
@@ -14,6 +14,8 @@ import { auth, db } from '../lib/firebase';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import { GlassSelect } from '../components/ui/GlassSelect';
 import { useDialog } from '../context/DialogContext';
+import { isAnalyticsEnabled, setAnalyticsConsent } from '../lib/analytics.js';
+import { cn } from '../utils/cn';
 
 export function SettingsView({
   doctorProfile,
@@ -23,12 +25,22 @@ export function SettingsView({
   onDeletePatient,
   onRestorePatient,
   onPermanentDeletePatient,
-  onStartTour
+  onStartTour,
+  entitlement = { plan: 'free' },
+  onNavigateToSubscription
 }) {
   const { confirm, alert: showAlert, prompt: showPrompt } = useDialog();
   const [localProfile, setLocalProfile] = useState(doctorProfile);
   const [selectedPatientToDelete, setSelectedPatientToDelete] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  // TODO: Default aktif perlu ditinjau penasihat hukum / legal counsel untuk kepatuhan regulasi lokal.
+  const [analyticsEnabled, setAnalyticsEnabledState] = useState(() => isAnalyticsEnabled());
+
+  const handleToggleAnalytics = () => {
+    const nextVal = !analyticsEnabled;
+    setAnalyticsEnabledState(nextVal);
+    setAnalyticsConsent(nextVal);
+  };
 
   useEffect(() => {
     setLocalProfile(doctorProfile);
@@ -347,6 +359,70 @@ export function SettingsView({
           </div>
         </div>
       )}
+
+      {/* Paket & Langganan Section */}
+      <button
+        type="button"
+        onClick={onNavigateToSubscription}
+        className="w-full p-4 glass-card-interactive rounded-[22px] text-left font-bold text-slate-800 flex items-center justify-between text-sm active:scale-[0.98] transition-all"
+      >
+        <span className="flex items-center gap-2.5">
+          <Sparkles size={17} className="text-teal-600" />
+          <span>Paket &amp; Langganan</span>
+        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              'px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider',
+              entitlement.plan === 'pro'
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm'
+                : 'bg-slate-200/80 text-slate-700'
+            )}
+          >
+            {entitlement.plan === 'pro' ? 'Pro Aktif' : 'Gratis'}
+          </span>
+          <ChevronRight size={17} className="text-slate-400" />
+        </div>
+      </button>
+
+      {/* Privasi & Statistik Anonim */}
+      <div className="glass-card p-5 rounded-[22px] space-y-3">
+        <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-widest border-b border-white/75 pb-2.5 flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <Shield size={14} className="text-cyan-700" />
+            Privasi &amp; Data Anonim
+          </span>
+        </h3>
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <p className="text-xs font-bold text-slate-800">
+              Bantu perbaiki app (statistik anonim)
+            </p>
+            <p className="text-[11px] text-slate-500 leading-tight">
+              Statistik pemakaian agregat tanpa nama pasien, nomor RM, ataupun isi catatan SOAP.
+            </p>
+          </div>
+          {/* Toggle Switch */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={analyticsEnabled}
+            aria-label="Nyalakan atau matikan statistik pemakaian anonim"
+            onClick={handleToggleAnalytics}
+            className={cn(
+              'w-12 h-7 rounded-full p-1 transition-colors duration-200 ease-in-out shrink-0 relative focus:outline-none focus:ring-2 focus:ring-teal-500/40',
+              analyticsEnabled ? 'bg-teal-600' : 'bg-slate-300'
+            )}
+          >
+            <span
+              className={cn(
+                'block w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out',
+                analyticsEnabled ? 'translate-x-5' : 'translate-x-0'
+              )}
+            />
+          </button>
+        </div>
+      </div>
 
       {/* Navigation & Guide Section */}
       <div className="space-y-3">
