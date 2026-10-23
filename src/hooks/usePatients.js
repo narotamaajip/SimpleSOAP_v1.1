@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { subscribeToPatients } from '../lib/patients';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 
@@ -13,9 +13,14 @@ import { getFriendlyErrorMessage } from '../utils/friendlyError';
 export function usePatients(user, authView, onError) {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const onErrorRef = useRef(onError);
 
   useEffect(() => {
-    if (!user || authView !== 'app') return;
+    onErrorRef.current = onError;
+  }, [onError]);
+
+  useEffect(() => {
+    if (!user?.uid || authView !== 'app') return;
 
     const unsubscribe = subscribeToPatients(
       user.uid,
@@ -26,8 +31,8 @@ export function usePatients(user, authView, onError) {
       (err) => {
         console.error('Firestore Error:', err.code, err.message);
         const friendlyMsg = getFriendlyErrorMessage(err, 'Gagal memuat data pasien. Silakan periksa koneksi internet Anda.');
-        if (onError) {
-          onError(friendlyMsg);
+        if (onErrorRef.current) {
+          onErrorRef.current(friendlyMsg);
         } else {
           console.warn('Patient listener notice:', friendlyMsg);
         }
@@ -36,7 +41,7 @@ export function usePatients(user, authView, onError) {
     );
 
     return () => unsubscribe();
-  }, [user?.uid, authView, onError]);
+  }, [user?.uid, authView]);
 
   return { patients, loading };
 }

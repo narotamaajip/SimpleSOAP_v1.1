@@ -1,4 +1,4 @@
-import { Stethoscope, MapPin, User, Share2 } from 'lucide-react';
+import { Stethoscope, MapPin, User } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 export function PatientCardCompact({ patient, onClick }) {
@@ -36,15 +36,6 @@ export function PatientCardCompact({ patient, onClick }) {
               <>
                 <span className="text-slate-300">•</span>
                 <span className="font-mono">RM: {patient.rm}</span>
-              </>
-            )}
-            {patient.shareCode && (
-              <>
-                <span className="text-slate-300">•</span>
-                <span className="inline-flex items-center gap-1 font-mono font-bold text-[10px] text-cyan-800 bg-cyan-500/10 border border-cyan-200/50 px-1.5 py-0.5 rounded-md">
-                  <Share2 size={9} />
-                  {patient.shareCode}
-                </span>
               </>
             )}
           </div>

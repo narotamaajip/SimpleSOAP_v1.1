@@ -14,8 +14,7 @@ import {
   Check,
   RefreshCw,
   LogOut,
-  Clock,
-  Share2
+  Clock
 } from 'lucide-react';
 import { generateShareCode, ensureShareCodeRegistered, removeFromAccessList, subscribeToSoapNotes, mergeSoapHistory } from '../lib/patients';
 import { auth } from '../lib/firebase';
@@ -44,22 +43,14 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
     }
   }, [patient?.shareCode]);
 
-  // Auto-sync or auto-generate shareCode so colleagues can redeem seamlessly anytime
+  // Silently make sure an existing shareCode is registered so colleagues can redeem it.
+  // No code is generated here — codes are created on-demand via the share button.
   useEffect(() => {
-    if (!patient?.id) return;
+    if (!patient?.id || !patient.shareCode) return;
     const targetOwnerId = patient.ownerId || auth.currentUser?.uid;
-
-    if (patient.shareCode) {
-      ensureShareCodeRegistered(patient.id, patient.name, targetOwnerId, patient.shareCode)
-        .catch((err) => console.warn('Auto-ensure share code notice:', err));
-    } else if (isOwner) {
-      generateShareCode(patient.id, patient.name, targetOwnerId)
-        .then((code) => {
-          if (code) setShareCode(code);
-        })
-        .catch((err) => console.warn('Auto-generate share code notice:', err));
-    }
-  }, [patient?.id, patient?.shareCode, isOwner, patient?.name, patient?.ownerId]);
+    ensureShareCodeRegistered(patient.id, patient.name, targetOwnerId, patient.shareCode)
+      .catch((err) => console.warn('Auto-ensure share code notice:', err));
+  }, [patient?.id, patient?.shareCode, patient?.name, patient?.ownerId]);
 
   // Subscribe to real-time subcollection notes
   useEffect(() => {
@@ -301,39 +292,6 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
               </div>
             </div>
           </div>
-
-          {/* Share Code Quick Pill - Prominently visible for both owner and collaborator */}
-          {shareCode && (
-            <div className="flex items-center justify-between bg-cyan-500/10 border border-cyan-200/70 px-3.5 py-2 rounded-2xl ml-1">
-              <div className="flex items-center gap-2">
-                <Share2 size={13} className="text-cyan-700 shrink-0" />
-                <span className="text-[10px] font-extrabold text-cyan-900 uppercase tracking-wider">
-                  KODE PASIEN:
-                </span>
-                <span className="font-mono font-extrabold text-sm text-slate-800 tracking-wider">
-                  {shareCode}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleCopyCode}
-                className="text-[11px] font-bold text-cyan-800 hover:text-cyan-950 flex items-center gap-1.5 px-2.5 py-1 rounded-xl glass-btn-secondary active:scale-90 transition-transform"
-                title="Salin Kode Akses"
-              >
-                {isCopied ? (
-                  <>
-                    <Check size={13} className="text-teal-600" />
-                    <span className="text-teal-700 text-[10px]">Tersalin</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy size={13} />
-                    <span className="text-[10px]">Salin</span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
 
           <div className="space-y-3 pt-3 border-t border-white/75 pl-2">
             <div>

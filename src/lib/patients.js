@@ -18,6 +18,7 @@ import {
   updateDoc,
   doc,
   getDoc,
+  getDocFromServer,
   query,
   where,
   serverTimestamp,
@@ -509,9 +510,18 @@ export async function revokeShareCode(patientId, existingCode) {
 // Grants a user access to a patient document via arrayUnion on accessList.
 // ---------------------------------------------------------------------------
 export async function addToAccessList(patientId, userId) {
-  return updateDoc(doc(db, PATIENTS_COL, patientId), {
+  const patientRef = doc(db, PATIENTS_COL, patientId);
+  await updateDoc(patientRef, {
     accessList: arrayUnion(userId)
   });
+
+  // Prime the local offline cache with the freshly shared document so the
+  // real-time listener shows it immediately instead of briefly dropping it.
+  try {
+    await getDocFromServer(patientRef);
+  } catch (err) {
+    console.warn('Could not prime cache for shared patient:', err);
+  }
 }
 
 // ---------------------------------------------------------------------------
