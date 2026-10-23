@@ -12,10 +12,8 @@ service cloud.firestore {
     match /shareCodes/{code} {
       allow get: if request.auth != null;
       allow list: if false;
-      allow create: if request.auth != null
-        && (request.resource.data.ownerId == request.auth.uid || request.resource.data.get('ownerId', null) == null);
-      allow update, delete: if request.auth != null
-        && (resource.data.get('ownerId', '') == request.auth.uid || resource.data.get('ownerId', '') == '');
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
     }
 
     // Patients collection
@@ -34,7 +32,7 @@ service cloud.firestore {
 
       // UPDATE: four valid cases:
       // (A1) Owner (or legacy patient without ownerId) — can update profile, SOAP, shareCode, soft-delete, etc., as long as ownerId is not modified
-      // (A2) Collaborator (in accessList, not owner) — can ONLY update SOAP follow-up progress fields
+      // (A2) Collaborator (in accessList) — can edit profile, SOAP, shareCode, but cannot modify ownerId, accessList, or soft-delete fields
       // (B) Share code redeem — user adds only themselves to accessList (defensive get() for legacy docs)
       // (C) Collaborator voluntarily leaving — removes only themselves from accessList
       allow update: if request.auth != null && (
@@ -45,16 +43,10 @@ service cloud.firestore {
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerId'])
         )
         ||
-        // Case A2: Collaborator in accessList (can only update SOAP follow-up progress fields)
+        // Case A2: Collaborator in accessList (can edit profile, SOAP, and shareCode, but cannot modify ownerId, accessList, or soft-delete fields)
         (
           request.auth.uid in resource.data.get('accessList', [])
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'history',
-            'status',
-            'lastSoapDate',
-            'lastSoapDoctor',
-            'isFollowedUp'
-          ])
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerId', 'accessList', 'isDeleted', 'deletedAt', 'deletedBy'])
         )
         ||
         // Case B: redeeming a share code — user adds only themselves to accessList

@@ -350,7 +350,7 @@ export default function SoapApp() {
           soapData,
           selectedPatient.history,
           isDischarged,
-          doctorProfile.name,
+          doctorProfile?.name || user?.displayName || 'Dokter',
           matchedNote?._docId
         );
       } else {
@@ -358,7 +358,7 @@ export default function SoapApp() {
           id: Date.now(),
           date: getFormattedDate(),
           time: getFormattedTime(),
-          doctor: doctorProfile.name,
+          doctor: doctorProfile?.name || user?.displayName || 'Dokter',
           ...soapData
         };
         await addSoapEntry(selectedPatientId, soapEntry, isDischarged, user.uid);
@@ -381,8 +381,18 @@ export default function SoapApp() {
     try {
       await updatePatientProfile(selectedPatientId, updatedData);
       setIsEditingPatientProfile(false);
+      showAlert({
+        title: 'Data Pasien Disimpan',
+        message: 'Perubahan data identitas pasien berhasil diperbarui.',
+        variant: 'success'
+      });
     } catch (error) {
       console.error('Error updating patient:', error);
+      showAlert({
+        title: 'Gagal Menyimpan',
+        message: 'Gagal memperbarui data identitas pasien. Silakan coba lagi.',
+        variant: 'danger'
+      });
     }
   };
 
@@ -393,7 +403,7 @@ export default function SoapApp() {
             id: Date.now(),
             date: getFormattedDate(),
             time: getFormattedTime(),
-            doctor: doctorProfile.name,
+            doctor: doctorProfile?.name || user?.displayName || 'Dokter',
             ...initialSoap
           }
         : null;

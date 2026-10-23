@@ -1,6 +1,22 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, User, AlertTriangle, Activity, Pencil, Send, X, ListRestart, Trash2, Copy, Check, RefreshCw, LogOut } from 'lucide-react';
+import {
+  ChevronLeft,
+  User,
+  AlertTriangle,
+  Activity,
+  Pencil,
+  Send,
+  X,
+  ListRestart,
+  Trash2,
+  Copy,
+  Check,
+  RefreshCw,
+  LogOut,
+  Clock,
+  Share2
+} from 'lucide-react';
 import { generateShareCode, ensureShareCodeRegistered, removeFromAccessList, subscribeToSoapNotes, mergeSoapHistory } from '../lib/patients';
 import { auth } from '../lib/firebase';
 import { useDialog } from '../context/DialogContext';
@@ -20,6 +36,13 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
   const [isLeaving, setIsLeaving] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [subcollectionNotes, setSubcollectionNotes] = useState([]);
+
+  // Sync shareCode if patient prop updates from real-time listener
+  useEffect(() => {
+    if (patient?.shareCode) {
+      setShareCode(patient.shareCode);
+    }
+  }, [patient?.shareCode]);
 
   // Subscribe to real-time subcollection notes
   useEffect(() => {
@@ -52,12 +75,13 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
   const handleShare = async () => {
     setIsGenerating(true);
     try {
+      const targetOwnerId = patient.ownerId || auth.currentUser?.uid;
       if (shareCode) {
         // Ensure existing shareCode is registered in shareCodes collection so colleagues can redeem
-        await ensureShareCodeRegistered(patient.id, patient.name, auth.currentUser?.uid, shareCode);
+        await ensureShareCodeRegistered(patient.id, patient.name, targetOwnerId, shareCode);
         setShowCode(!showCode);
       } else {
-        const newCode = await generateShareCode(patient.id, patient.name, auth.currentUser?.uid);
+        const newCode = await generateShareCode(patient.id, patient.name, targetOwnerId);
         setShareCode(newCode);
         setShowCode(true);
         track('share_code_created');
@@ -87,7 +111,8 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
 
     setIsGenerating(true);
     try {
-      const newCode = await generateShareCode(patient.id, patient.name, auth.currentUser?.uid, shareCode);
+      const targetOwnerId = patient.ownerId || auth.currentUser?.uid;
+      const newCode = await generateShareCode(patient.id, patient.name, targetOwnerId, shareCode);
       setShareCode(newCode);
       setShowCode(true);
       setIsCopied(false);
@@ -231,31 +256,63 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
               >
                 {patient.status}
               </span>
-              {isOwner ? (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleShare}
-                    disabled={isGenerating}
-                    title="Bagikan Kode Akses"
-                    className="p-2 text-cyan-800 glass-btn-secondary rounded-xl"
-                  >
-                    {isGenerating ? <Activity size={14} className="animate-spin" /> : <Send size={14} />}
-                  </button>
-                  <button
-                    onClick={onEditPatient}
-                    title="Edit Identitas Pasien"
-                    className="p-2 text-slate-600 hover:text-cyan-800 glass-btn-secondary rounded-xl"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                </div>
-              ) : (
-                <span className="text-[9px] font-bold text-slate-500 glass-subpanel px-2.5 py-0.5 rounded-full">
-                  Kolaborator
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {!isOwner && (
+                  <span className="text-[9px] font-bold text-teal-800 bg-teal-500/10 border border-teal-200/60 px-2 py-0.5 rounded-full">
+                    Kolaborator
+                  </span>
+                )}
+                <button
+                  onClick={handleShare}
+                  disabled={isGenerating}
+                  title="Bagikan Kode Akses Pasien"
+                  className="p-2 text-cyan-800 glass-btn-secondary rounded-xl active:scale-95 transition-transform"
+                >
+                  {isGenerating ? <Activity size={14} className="animate-spin" /> : <Send size={14} />}
+                </button>
+                <button
+                  onClick={onEditPatient}
+                  title="Edit Data Pasien"
+                  className="p-2 text-slate-600 hover:text-cyan-800 glass-btn-secondary rounded-xl active:scale-95 transition-transform"
+                >
+                  <Pencil size={14} />
+                </button>
+              </div>
             </div>
           </div>
+
+          {/* Share Code Quick Pill - Prominently visible for both owner and collaborator */}
+          {shareCode && (
+            <div className="flex items-center justify-between bg-cyan-500/10 border border-cyan-200/70 px-3.5 py-2 rounded-2xl ml-1">
+              <div className="flex items-center gap-2">
+                <Share2 size={13} className="text-cyan-700 shrink-0" />
+                <span className="text-[10px] font-extrabold text-cyan-900 uppercase tracking-wider">
+                  KODE PASIEN:
+                </span>
+                <span className="font-mono font-extrabold text-sm text-slate-800 tracking-wider">
+                  {shareCode}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyCode}
+                className="text-[11px] font-bold text-cyan-800 hover:text-cyan-950 flex items-center gap-1.5 px-2.5 py-1 rounded-xl glass-btn-secondary active:scale-90 transition-transform"
+                title="Salin Kode Akses"
+              >
+                {isCopied ? (
+                  <>
+                    <Check size={13} className="text-teal-600" />
+                    <span className="text-teal-700 text-[10px]">Tersalin</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={13} />
+                    <span className="text-[10px]">Salin</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
           <div className="space-y-3 pt-3 border-t border-white/75 pl-2">
             <div>
@@ -267,6 +324,26 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
               <p className="text-sm font-bold text-slate-700 mt-0.5">{patient.dx}</p>
             </div>
           </div>
+
+          {/* Latest SOAP Follow-up Info */}
+          {(patient.lastSoapDoctor || patient.lastSoapDate) && (
+            <div className="bg-slate-50/70 border border-slate-200/60 p-3 rounded-2xl flex items-center gap-2.5 ml-2">
+              <Clock size={14} className="text-teal-600 shrink-0" />
+              <div className="text-xs text-slate-600">
+                <span className="font-semibold text-slate-500 text-[10px] uppercase tracking-wider block">
+                  Follow-Up Terakhir
+                </span>
+                <span className="font-bold text-slate-800">
+                  {patient.lastSoapDate || '-'}
+                </span>
+                {patient.lastSoapDoctor && (
+                  <span className="font-bold text-teal-800">
+                    {' • '}oleh {patient.lastSoapDoctor}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Allergy Alert */}
           {patient.alergi && patient.alergi !== 'Tidak ada' && (
@@ -363,29 +440,33 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
             {displayHistory.length > 0 ? (
               displayHistory.map((h) => (
                 <div key={h.id} className="glass-card rounded-[20px] overflow-hidden">
-                  <div className="bg-white/45 px-4 py-3 flex justify-between items-center border-b border-white/75">
-                    <div>
-                      <p className="text-xs font-extrabold text-slate-800">{h.date}</p>
-                      {h.doctor && (
-                        <p className="text-[10px] font-semibold text-cyan-800 mt-0.5 flex items-center gap-1">
-                          <User size={10} />
-                          {h.doctor}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2.5">
-                      {h.isEdited && (
-                        <span className="text-[9px] font-bold text-amber-800 bg-amber-500/12 border border-amber-200/80 px-2.5 py-0.5 rounded-full">
-                          Diedit {h.editedAt ? `(${h.editedAt})` : ''}
+                  <div className="bg-white/50 px-4 py-3 flex justify-between items-center border-b border-white/75">
+                    <div className="min-w-0 pr-2">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-extrabold text-slate-800">{h.date}</p>
+                        <span className="text-[10px] font-semibold text-slate-400 font-mono">
+                          {h.time}
                         </span>
-                      )}
-                      <p className="text-[10px] font-semibold text-slate-400 font-mono">{h.time}</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                        <p className="text-[11px] font-bold text-teal-800 flex items-center gap-1">
+                          <User size={11} className="text-teal-600 shrink-0" />
+                          <span>{h.doctor || patient.lastSoapDoctor || 'Dokter'}</span>
+                        </p>
+                        {h.isEdited && (
+                          <span className="text-[9px] font-bold text-amber-800 bg-amber-500/15 border border-amber-200/80 px-2 py-0.5 rounded-full">
+                            Diedit oleh {h.editedBy || 'Dokter'} {h.editedAt ? `(${h.editedAt})` : ''}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         onClick={() => onEditSoap(h.id, displayHistory)}
-                        className="p-1.5 text-cyan-800 glass-btn-secondary rounded-xl"
+                        className="p-1.5 text-cyan-800 glass-btn-secondary rounded-xl active:scale-95 transition-transform"
                         title="Koreksi SOAP"
                       >
-                        <Pencil size={12} />
+                        <Pencil size={13} />
                       </button>
                     </div>
                   </div>

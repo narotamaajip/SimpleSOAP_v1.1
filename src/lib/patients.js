@@ -375,6 +375,7 @@ export async function updateSoapEntry(patientId, editingSoapId, updatedSoapData,
 
   return updateDoc(patientRef, {
     history: updatedHistory,
+    ...(editorDoctorName && { lastSoapDoctor: editorDoctorName }),
     ...(typeof isDischarged === 'boolean' && { status: isDischarged ? 'PULANG' : 'SUDAH FU' })
   });
 }

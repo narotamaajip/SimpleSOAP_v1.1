@@ -1,4 +1,4 @@
-import { Stethoscope, MapPin } from 'lucide-react';
+import { Stethoscope, MapPin, User, Share2 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 export function PatientCardCompact({ patient, onClick }) {
@@ -26,13 +26,28 @@ export function PatientCardCompact({ patient, onClick }) {
       />
 
       <div className="flex justify-between items-start gap-2 mb-2.5">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h4 className="text-base font-extrabold text-slate-800 leading-tight truncate">
             {patient.name}
           </h4>
-          <p className="text-[11px] font-mono text-slate-500 font-semibold mt-0.5">
-            Usia: {patient.age} thn {patient.rm ? `• RM: ${patient.rm}` : ''}
-          </p>
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-slate-500 mt-0.5">
+            <span>Usia: {patient.age} thn</span>
+            {patient.rm && (
+              <>
+                <span className="text-slate-300">•</span>
+                <span className="font-mono">RM: {patient.rm}</span>
+              </>
+            )}
+            {patient.shareCode && (
+              <>
+                <span className="text-slate-300">•</span>
+                <span className="inline-flex items-center gap-1 font-mono font-bold text-[10px] text-cyan-800 bg-cyan-500/10 border border-cyan-200/50 px-1.5 py-0.5 rounded-md">
+                  <Share2 size={9} />
+                  {patient.shareCode}
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
         <span
@@ -62,6 +77,15 @@ export function PatientCardCompact({ patient, onClick }) {
             {patient.ward || '-'}
           </p>
         </div>
+        {patient.lastSoapDoctor && (
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 pt-0.5 border-t border-slate-100">
+            <User size={12} className="text-teal-600/80 shrink-0" />
+            <span className="truncate">
+              FU Terakhir: <strong className="text-slate-700">{patient.lastSoapDoctor}</strong>
+              {patient.lastSoapDate ? ` (${patient.lastSoapDate})` : ''}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
