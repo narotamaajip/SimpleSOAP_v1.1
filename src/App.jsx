@@ -23,11 +23,7 @@ import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { NavItem } from './components/ui/NavItem';
 import { AmbientBackground } from './components/ui/AmbientBackground';
 import { TourClosingModal } from './components/TourClosingModal';
-import { PaywallBottomSheet } from './components/PaywallBottomSheet.jsx';
-import { MockCheckoutModal } from './components/MockCheckoutModal.jsx';
-import { DevPanel } from './components/DevPanel.jsx';
-import { initAnalytics, setAuthUserId, setUserPlanProperty, track } from './lib/analytics.js';
-import { getEntitlement, subscribeEntitlement, resetCheckoutState } from './lib/billing.js';
+import { initAnalytics, setAuthUserId, track } from './lib/analytics.js';
 
 // --- Views: eager-loaded (critical path) ---
 import { LoginView } from './views/LoginView';
@@ -35,7 +31,6 @@ import { DashboardView } from './views/DashboardView';
 import { PatientListView } from './views/PatientListView';
 import { PatientDetailView } from './views/PatientDetailView';
 import { SettingsView } from './views/SettingsView';
-import { SubscriptionView } from './views/SubscriptionView.jsx';
 import { SoapForm } from './views/SoapForm';
 import { NewPatientSoapForm } from './views/NewPatientSoapForm';
 import { EditPatientProfileForm } from './views/EditPatientProfileForm';
@@ -85,35 +80,22 @@ export default function SoapApp() {
   const [isAddingNewPatient, setIsAddingNewPatient] = useState(false);
   const [isEditingPatientProfile, setIsEditingPatientProfile] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isViewingSubscription, setIsViewingSubscription] = useState(false);
-  const [paywallTrigger, setPaywallTrigger] = useState(null); // 'patient_limit' | 'photo' | 'settings' | null
-  const [entitlement, setEntitlement] = useState(() => getEntitlement());
-  const [mockPatientCount, setMockPatientCount] = useState(null);
-
-  // Subscribe to billing entitlement changes
-  useEffect(() => {
-    const unsub = subscribeEntitlement((newEnt) => {
-      setEntitlement(newEnt);
-    });
-    return () => unsub();
-  }, []);
 
   // Initialize Analytics & set User Properties
   useEffect(() => {
     if (user?.uid) {
       initAnalytics().then(() => {
         setAuthUserId(user.uid);
-        setUserPlanProperty(entitlement.plan);
       });
     }
-  }, [user?.uid, entitlement.plan]);
+  }, [user?.uid]);
 
   // --- Browser History (Android Back Button / Swipe Back) Sync ---
   const overlayDepth = useMemo(() => {
     if (isAddingSoap || isEditingPatientProfile) return 2;
-    if (selectedPatientId || isAddingNewPatient || isViewingSubscription) return 1;
+    if (selectedPatientId || isAddingNewPatient) return 1;
     return 0;
-  }, [selectedPatientId, isAddingNewPatient, isAddingSoap, isEditingPatientProfile, isViewingSubscription]);
+  }, [selectedPatientId, isAddingNewPatient, isAddingSoap, isEditingPatientProfile]);
 
   const prevDepthRef = useRef(0);
   const isPopStateRef = useRef(false);
@@ -142,9 +124,6 @@ export default function SoapApp() {
       } else if (isAddingNewPatient) {
         isPopStateRef.current = true;
         setIsAddingNewPatient(false);
-      } else if (isViewingSubscription) {
-        isPopStateRef.current = true;
-        setIsViewingSubscription(false);
       } else if (selectedPatientId) {
         isPopStateRef.current = true;
         setSelectedPatientId(null);
@@ -152,7 +131,7 @@ export default function SoapApp() {
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [isAddingSoap, isEditingPatientProfile, isAddingNewPatient, isViewingSubscription, selectedPatientId]);
+  }, [isAddingSoap, isEditingPatientProfile, isAddingNewPatient, selectedPatientId]);
 
   // --- Onboarding Tour State ---
   const [isBrandNewDoctor, setIsBrandNewDoctor] = useState(false);
@@ -502,14 +481,12 @@ export default function SoapApp() {
 
       setIsAddingNewPatient(false);
       setIsAddingSoap(false);
-      setIsViewingSubscription(false);
       setSelectedPatientId(null);
       setActiveTab(tab);
       if (tourStep === 1 && tab === 'pasien') {
         setTourStep(2);
       }
     } else {
-      setIsViewingSubscription(false);
       setSelectedPatientId(null);
       setActiveTab(tab);
       if (tourStep === 1 && tab === 'pasien') {
@@ -620,16 +597,6 @@ export default function SoapApp() {
                 setEditingSoapId(null);
               }}
               onSave={handleSaveSoap}
-              entitlement={entitlement}
-              onOpenPaywall={(trigger) => setPaywallTrigger(trigger || 'photo')}
-            />
-          ) : isViewingSubscription ? (
-            <SubscriptionView
-              key="subscription"
-              entitlement={entitlement}
-              activePatientCount={mockPatientCount !== null ? mockPatientCount : stats.total}
-              onBack={() => setIsViewingSubscription(false)}
-              onOpenPaywall={() => setPaywallTrigger('settings')}
             />
           ) : selectedPatientId ? (
             <PatientDetailView
@@ -660,9 +627,6 @@ export default function SoapApp() {
                     patients={patients}
                     stats={stats}
                     doctorProfile={doctorProfile}
-                    entitlement={entitlement}
-                    activeCountOverride={mockPatientCount}
-                    onOpenPaywall={() => setPaywallTrigger('settings')}
                     onSelectPatient={(id) => {
                       setSelectedPatientId(id);
                       if (tourStep === 4) {
@@ -686,9 +650,6 @@ export default function SoapApp() {
                     setSearchQuery={setSearchQuery}
                     categoryFilter={patientFilterCategory}
                     setCategoryFilter={setPatientFilterCategory}
-                    entitlement={entitlement}
-                    activeCountOverride={mockPatientCount}
-                    onOpenPaywall={(trigger) => setPaywallTrigger(trigger || 'patient_limit')}
                     onSelectPatient={(id) => {
                       setSelectedPatientId(id);
                       if (tourStep === 4) {
@@ -711,8 +672,6 @@ export default function SoapApp() {
                     setDoctorProfile={setDoctorProfile}
                     patients={patients}
                     currentUserId={user?.uid}
-                    entitlement={entitlement}
-                    onNavigateToSubscription={() => setIsViewingSubscription(true)}
                     onDeletePatient={handleDeletePatient}
                     onRestorePatient={handleRestorePatient}
                     onPermanentDeletePatient={handlePermanentDeletePatient}
@@ -742,44 +701,24 @@ export default function SoapApp() {
         <NavItem
           icon={<LayoutGrid size={19} />}
           label="Beranda"
-          active={activeTab === 'beranda' && !selectedPatientId && !isViewingSubscription}
+          active={activeTab === 'beranda' && !selectedPatientId}
           onClick={() => handleTabClick('beranda')}
         />
         <div id="tour-nav-pasien" className="flex items-center justify-center">
           <NavItem
             icon={<Users size={19} />}
             label="Pasien"
-            active={(activeTab === 'pasien' || !!selectedPatientId) && !isViewingSubscription}
+            active={(activeTab === 'pasien' || !!selectedPatientId)}
             onClick={() => handleTabClick('pasien')}
           />
         </div>
         <NavItem
           icon={<Settings size={19} />}
           label="Pengaturan"
-          active={(activeTab === 'pengaturan' || isViewingSubscription) && !selectedPatientId}
+          active={activeTab === 'pengaturan' && !selectedPatientId}
           onClick={() => handleTabClick('pengaturan')}
         />
       </div>
-
-      {/* Paywall Bottom Sheet */}
-      <PaywallBottomSheet
-        isOpen={!!paywallTrigger}
-        trigger={paywallTrigger || 'patient_limit'}
-        onClose={() => setPaywallTrigger(null)}
-      />
-
-      {/* Mock Checkout Modal (Menunggu Pembayaran, Berhasil, Gagal) */}
-      <MockCheckoutModal
-        checkoutState={entitlement.checkoutState}
-        selectedPlanId={entitlement.selectedPlanId}
-        onClose={() => resetCheckoutState()}
-      />
-
-      {/* Developer Testing Panel (Localhost only) */}
-      <DevPanel
-        mockPatientCount={mockPatientCount}
-        onSetMockPatientCount={setMockPatientCount}
-      />
     </div>
   );
 }

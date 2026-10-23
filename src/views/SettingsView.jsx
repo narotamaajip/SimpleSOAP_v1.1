@@ -25,9 +25,7 @@ export function SettingsView({
   onDeletePatient,
   onRestorePatient,
   onPermanentDeletePatient,
-  onStartTour,
-  entitlement = { plan: 'free' },
-  onNavigateToSubscription
+  onStartTour
 }) {
   const { confirm, alert: showAlert, prompt: showPrompt } = useDialog();
   const [localProfile, setLocalProfile] = useState(doctorProfile);
@@ -360,32 +358,7 @@ export function SettingsView({
         </div>
       )}
 
-      {/* Paket & Langganan Section */}
-      <button
-        type="button"
-        onClick={onNavigateToSubscription}
-        className="w-full p-4 glass-card-interactive rounded-[22px] text-left font-bold text-slate-800 flex items-center justify-between text-sm active:scale-[0.98] transition-all"
-      >
-        <span className="flex items-center gap-2.5">
-          <Sparkles size={17} className="text-teal-600" />
-          <span>Paket &amp; Langganan</span>
-        </span>
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              'px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider',
-              entitlement.plan === 'pro'
-                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm'
-                : 'bg-slate-200/80 text-slate-700'
-            )}
-          >
-            {entitlement.plan === 'pro' ? 'Pro Aktif' : 'Gratis'}
-          </span>
-          <ChevronRight size={17} className="text-slate-400" />
-        </div>
-      </button>
-
-      {/* Privasi & Statistik Anonim */}
+      {/* Privasi & Data Anonim */}
       <div className="glass-card p-5 rounded-[22px] space-y-3">
         <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-widest border-b border-white/75 pb-2.5 flex items-center justify-between">
           <span className="flex items-center gap-2">

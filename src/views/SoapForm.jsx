@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X, FileText, CheckCircle2, Camera, Sparkles, Lock, Trash2 } from 'lucide-react';
+import { X, FileText, CheckCircle2, Camera, Sparkles, Trash2 } from 'lucide-react';
 import { AccordionSection } from '../components/ui/AccordionSection';
 import { VitalInput } from '../components/ui/VitalInput';
 import { AmbientBackground } from '../components/ui/AmbientBackground';
@@ -58,9 +58,7 @@ export function SoapForm({
   notes,
   editingSoapId,
   onBack,
-  onSave,
-  entitlement = { plan: 'free' },
-  onOpenPaywall
+  onSave
 }) {
   const { confirm, alert: showAlert } = useDialog();
   const [activeSection, setActiveSection] = useState('s');
@@ -390,11 +388,6 @@ export function SoapForm({
                   <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
                     Foto Klinis (Luka, EKG, Lab, Ro)
                   </p>
-                  {entitlement.plan !== 'pro' && (
-                    <span className="inline-flex items-center gap-1 text-[9px] font-extrabold text-teal-800 bg-teal-500/10 px-2 py-0.5 rounded-full border border-teal-200/50">
-                      <Lock size={10} /> Fitur Pro
-                    </span>
-                  )}
                 </div>
 
                 {photos.length > 0 && (
@@ -440,13 +433,7 @@ export function SoapForm({
 
                 <button
                   type="button"
-                  onClick={() => {
-                    if (entitlement.plan !== 'pro') {
-                      if (onOpenPaywall) onOpenPaywall('photo');
-                    } else {
-                      fileInputRef.current?.click();
-                    }
-                  }}
+                  onClick={() => fileInputRef.current?.click()}
                   className="w-full py-2.5 px-3 rounded-2xl glass-btn-secondary text-slate-700 text-xs font-bold flex items-center justify-center gap-2 active:scale-95"
                 >
                   <Camera size={14} className="text-teal-600" />

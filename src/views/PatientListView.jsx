@@ -5,7 +5,6 @@ import { auth } from '../lib/firebase';
 import { findPatientByShareCode, addToAccessList } from '../lib/patients';
 import { PatientCardDetailed } from '../components/PatientCardDetailed';
 import { GlassSelect } from '../components/ui/GlassSelect';
-import { PLANS_CONFIG } from '../config/plans.js';
 import { track } from '../lib/analytics.js';
 import { cn } from '../utils/cn';
 
@@ -17,10 +16,7 @@ export function PatientListView({
   setCategoryFilter,
   onSelectPatient,
   onAddPatientClick,
-  isTourActive,
-  entitlement = { plan: 'free' },
-  activeCountOverride = null,
-  onOpenPaywall
+  isTourActive
 }) {
   const [roomFilter, setRoomFilter] = useState('');
   const [showRedeem, setShowRedeem] = useState(false);
@@ -28,20 +24,7 @@ export function PatientListView({
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [redeemStatus, setRedeemStatus] = useState({ type: '', message: '' });
 
-  const actualActiveCount = useMemo(() => {
-    return patients.filter((p) => !p.isDeleted && p.status !== 'PULANG').length;
-  }, [patients]);
-  const activeCount = activeCountOverride !== null ? activeCountOverride : actualActiveCount;
-  const isFree = entitlement.plan === 'free';
-  const isAtLimit = isFree && activeCount >= PLANS_CONFIG.free.maxActivePatients;
-
   const handleAddPatientTrigger = () => {
-    if (isAtLimit) {
-      if (onOpenPaywall) {
-        onOpenPaywall('patient_limit');
-      }
-      return;
-    }
     onAddPatientClick();
   };
 
@@ -315,16 +298,6 @@ export function PatientListView({
         )}
       >
         <Plus size={26} />
-        {isFree && activeCount >= 8 && (
-          <span
-            className={cn(
-              "absolute -top-1.5 -left-1 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold shadow-sm border border-white/60",
-              activeCount >= 10 ? "bg-rose-600 text-white" : "bg-amber-500 text-white"
-            )}
-          >
-            {activeCount}/10
-          </span>
-        )}
       </button>
     </motion.div>
   );
