@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Search, Plus, Activity, Key, X } from 'lucide-react';
 import { auth } from '../lib/firebase';
-import { findPatientByShareCode, addToAccessList } from '../lib/patients';
+import { findPatientByShareCode, addToAccessList, ensureShareCodeRegistered } from '../lib/patients';
 import { PatientCardDetailed } from '../components/PatientCardDetailed';
 import { GlassSelect } from '../components/ui/GlassSelect';
 import { track } from '../lib/analytics.js';
@@ -23,6 +23,26 @@ export function PatientListView({
   const [redeemCode, setRedeemCode] = useState('');
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [redeemStatus, setRedeemStatus] = useState({ type: '', message: '' });
+  const syncedCodesRef = useRef(new Set());
+
+  // Background auto-sync owned patients' share codes so they are guaranteed active in shareCodes collection
+  useEffect(() => {
+    if (!auth.currentUser?.uid || !patients || patients.length === 0) return;
+    const currentUid = auth.currentUser.uid;
+
+    const ownedPatientsWithCode = patients.filter(
+      (p) => !p.isDeleted && (!p.ownerId || p.ownerId === currentUid) && p.shareCode
+    );
+
+    ownedPatientsWithCode.forEach((patient) => {
+      const code = String(patient.shareCode).trim().toUpperCase();
+      if (!syncedCodesRef.current.has(code)) {
+        syncedCodesRef.current.add(code);
+        ensureShareCodeRegistered(patient.id, patient.name, currentUid, code)
+          .catch((err) => console.warn('Background code registration notice:', err));
+      }
+    });
+  }, [patients]);
 
   const handleAddPatientTrigger = () => {
     onAddPatientClick();
@@ -30,7 +50,7 @@ export function PatientListView({
 
   const handleRedeem = async (e) => {
     e.preventDefault();
-    const cleanCode = redeemCode.trim().toUpperCase().replace(/\s/g, '');
+    const cleanCode = redeemCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (!cleanCode) return;
 
     if (cleanCode.length < 4) {
@@ -46,7 +66,7 @@ export function PatientListView({
       if (!result.found) {
         setRedeemStatus({
           type: 'error',
-          message: 'Kode tidak ditemukan. Pastikan kode 6 digit sudah tepat.'
+          message: 'Kode akses tidak ditemukan. Pastikan kode 6 digit sudah tepat dan rekan dokter Anda sudah membagikannya.'
         });
         return;
       }
@@ -57,7 +77,7 @@ export function PatientListView({
       if (result.data?.ownerId && result.data.ownerId === auth.currentUser?.uid) {
         setRedeemStatus({
           type: 'info',
-          message: `Ini adalah pasien Anda sendiri (${patientName}).`
+          message: `Ini adalah rekam medis pasien Anda sendiri (${patientName}).`
         });
         return;
       }
@@ -67,7 +87,7 @@ export function PatientListView({
       if (alreadyHasAccess) {
         setRedeemStatus({
           type: 'info',
-          message: `Anda sudah memiliki akses ke ${patientName}.`
+          message: `Anda sudah memiliki akses ke rekam medis ${patientName}.`
         });
         return;
       }
@@ -90,7 +110,7 @@ export function PatientListView({
       setRedeemStatus({
         type: 'error',
         message: isPermission
-          ? 'Akses ditolak. Kode sudah tidak berlaku atau kadaluarsa.'
+          ? 'Akses ditolak. Pastikan kode masih aktif pada rekam medis pasien.'
           : 'Gagal menghubungkan pasien. Silakan periksa koneksi internet Anda.'
       });
     } finally {
@@ -176,7 +196,7 @@ export function PatientListView({
                     placeholder="Contoh: X7A9KQ"
                     maxLength={6}
                     value={redeemCode}
-                    onChange={(e) => setRedeemCode(e.target.value.toUpperCase().replace(/\s/g, ''))}
+                    onChange={(e) => setRedeemCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                     className="flex-1 p-2.5 rounded-xl glass-input text-sm font-mono font-bold tracking-widest uppercase text-slate-800"
                   />
                   <button

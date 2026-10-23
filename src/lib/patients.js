@@ -26,9 +26,9 @@ import {
   deleteDoc,
   getDocs
 } from 'firebase/firestore';
-import { db } from './firebase';
-import { getFriendlyErrorMessage } from '../utils/friendlyError';
-import { getFormattedDate, getFormattedTime } from '../utils/timezone';
+import { db } from './firebase.js';
+import { getFriendlyErrorMessage } from '../utils/friendlyError.js';
+import { getFormattedDate, getFormattedTime } from '../utils/timezone.js';
 
 const PATIENTS_COL = 'patients';
 const SHARE_CODES_COL = 'shareCodes';
@@ -86,16 +86,29 @@ export function subscribeToPatients(userId, onData, onError) {
 }
 
 // ---------------------------------------------------------------------------
+// createRandomShareCode
+// Generates a cryptographically secure 6-char alphanumeric code (excludes O,0,I,1).
+// ---------------------------------------------------------------------------
+export function createRandomShareCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const randomBytes = new Uint8Array(6);
+  crypto.getRandomValues(randomBytes);
+  return Array.from(randomBytes).map((b) => chars[b % chars.length]).join('');
+}
+
+// ---------------------------------------------------------------------------
 // addPatient
-// Creates a new patient document. history starts empty or with an initial SOAP.
+// Creates a new patient document with an initial shareCode registered immediately.
 // ---------------------------------------------------------------------------
 export async function addPatient(patientData, userId, initialSoapItem) {
   const historyItem = initialSoapItem ? [initialSoapItem] : [];
   const now = Date.now();
   const isInitialDischarged = !!initialSoapItem?.isDischarged;
+  const initialShareCode = createRandomShareCode();
 
   const docRef = await addDoc(collection(db, PATIENTS_COL), {
     ...patientData,
+    shareCode: initialShareCode,
     ownerId: userId,
     accessList: [userId],
     history: historyItem,
@@ -107,6 +120,19 @@ export async function addPatient(patientData, userId, initialSoapItem) {
     createdAt: serverTimestamp(),
     localTimestamp: now
   });
+
+  // Guarantee shareCode is registered in dedicated collection right at creation
+  try {
+    await setDoc(doc(db, SHARE_CODES_COL, initialShareCode), {
+      patientId: docRef.id,
+      patientName: patientData.name || 'Pasien',
+      ownerId: userId,
+      createdAt: serverTimestamp(),
+      localTimestamp: now
+    });
+  } catch (err) {
+    console.warn('Initial shareCode registration notice:', err);
+  }
 
   // Also write initial SOAP to subcollection if provided (using same ID for lean consistency)
   if (initialSoapItem) {
@@ -386,15 +412,15 @@ export async function updateSoapEntry(patientId, editingSoapId, updatedSoapData,
 // If previousCode is provided, cleanly removes the old shareCode document.
 // ---------------------------------------------------------------------------
 export async function generateShareCode(patientId, patientName, ownerId, previousCode) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // excludes confusable chars O,0,I,1
-  const randomBytes = new Uint8Array(6);
-  crypto.getRandomValues(randomBytes);
-  const newCode = Array.from(randomBytes).map(b => chars[b % chars.length]).join('');
+  const newCode = createRandomShareCode();
 
   // 1. If previous code existed, clean it up from shareCodes collection
   if (previousCode && previousCode !== newCode) {
     try {
-      await deleteDoc(doc(db, SHARE_CODES_COL, previousCode.trim().toUpperCase()));
+      const cleanPrev = String(previousCode).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (cleanPrev) {
+        await deleteDoc(doc(db, SHARE_CODES_COL, cleanPrev));
+      }
     } catch (e) {
       console.warn('Could not clean up previous shareCode document:', e);
     }
@@ -417,25 +443,42 @@ export async function generateShareCode(patientId, patientName, ownerId, previou
 // ---------------------------------------------------------------------------
 // ensureShareCodeRegistered
 // Guarantees that an existing shareCode on a patient is registered in the
-// shareCodes collection (fixes older patients created before shareCodes was introduced).
+// shareCodes collection (fixes older patients created before shareCodes was introduced
+// or patients whose codes were generated without a dedicated document).
 // ---------------------------------------------------------------------------
 export async function ensureShareCodeRegistered(patientId, patientName, ownerId, existingCode) {
   if (!existingCode || typeof existingCode !== 'string') return null;
-  const cleanCode = existingCode.trim().toUpperCase();
+  const cleanCode = existingCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (cleanCode.length < 4) return null;
 
   try {
     const codeRef = doc(db, SHARE_CODES_COL, cleanCode);
     const snap = await getDoc(codeRef);
-    if (!snap.exists()) {
-      await setDoc(codeRef, {
-        patientId,
-        patientName: patientName || 'Pasien',
-        ownerId: ownerId || null,
-        createdAt: serverTimestamp(),
-        localTimestamp: Date.now()
-      });
+    if (!snap.exists() || snap.data()?.patientId !== patientId) {
+      await setDoc(
+        codeRef,
+        {
+          patientId,
+          patientName: patientName || 'Pasien',
+          ownerId: ownerId || null,
+          createdAt: serverTimestamp(),
+          localTimestamp: Date.now()
+        },
+        { merge: true }
+      );
     }
+
+    // Ensure the patient document also holds this shareCode if missing
+    try {
+      const patientRef = doc(db, PATIENTS_COL, patientId);
+      const patientSnap = await getDoc(patientRef);
+      if (patientSnap.exists() && patientSnap.data()?.shareCode !== cleanCode) {
+        await updateDoc(patientRef, { shareCode: cleanCode });
+      }
+    } catch (syncErr) {
+      console.warn('Patient document shareCode sync notice:', syncErr);
+    }
+
     return cleanCode;
   } catch (err) {
     console.warn('ensureShareCodeRegistered warning:', err);
@@ -450,7 +493,10 @@ export async function ensureShareCodeRegistered(patientId, patientName, ownerId,
 export async function revokeShareCode(patientId, existingCode) {
   if (existingCode) {
     try {
-      await deleteDoc(doc(db, SHARE_CODES_COL, existingCode.trim().toUpperCase()));
+      const clean = String(existingCode).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (clean) {
+        await deleteDoc(doc(db, SHARE_CODES_COL, clean));
+      }
     } catch (e) {
       console.warn('Could not delete revoked share code from collection:', e);
     }
@@ -481,23 +527,35 @@ export async function removeFromAccessList(patientId, userId) {
 // ---------------------------------------------------------------------------
 // findPatientByShareCode
 // Looks up a 6-digit code in the shareCodes collection (open to all doctors via getDoc).
+// Also gracefully handles common character confusions like 0/O and 1/I.
 // ---------------------------------------------------------------------------
 export async function findPatientByShareCode(shareCode) {
-  if (!shareCode || typeof shareCode !== 'string') return { found: false };
-  const cleanCode = shareCode.trim().toUpperCase();
+  if (!shareCode || typeof shareCode !== 'string') return { found: false, reason: 'empty_input' };
+  const cleanCode = shareCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (cleanCode.length < 4) return { found: false, reason: 'invalid_format' };
 
   try {
+    // 1. Direct point lookup
     const codeDoc = await getDoc(doc(db, SHARE_CODES_COL, cleanCode));
     if (codeDoc.exists()) {
       const codeData = codeDoc.data();
       const patientId = codeData.patientId;
       return { found: true, patientId, data: codeData };
     }
+
+    // 2. Fallback for confusable characters: replace 0 with O, 1 with I
+    const normalizedCode = cleanCode.replace(/0/g, 'O').replace(/1/g, 'I');
+    if (normalizedCode !== cleanCode) {
+      const altDoc = await getDoc(doc(db, SHARE_CODES_COL, normalizedCode));
+      if (altDoc.exists()) {
+        const altData = altDoc.data();
+        return { found: true, patientId: altData.patientId, data: altData };
+      }
+    }
   } catch (err) {
     console.warn('Lookup in shareCodes collection error:', err);
     return { found: false, error: err };
   }
 
-  return { found: false };
+  return { found: false, reason: 'not_found' };
 }

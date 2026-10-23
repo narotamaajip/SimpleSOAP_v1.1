@@ -44,6 +44,23 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
     }
   }, [patient?.shareCode]);
 
+  // Auto-sync or auto-generate shareCode so colleagues can redeem seamlessly anytime
+  useEffect(() => {
+    if (!patient?.id) return;
+    const targetOwnerId = patient.ownerId || auth.currentUser?.uid;
+
+    if (patient.shareCode) {
+      ensureShareCodeRegistered(patient.id, patient.name, targetOwnerId, patient.shareCode)
+        .catch((err) => console.warn('Auto-ensure share code notice:', err));
+    } else if (isOwner) {
+      generateShareCode(patient.id, patient.name, targetOwnerId)
+        .then((code) => {
+          if (code) setShareCode(code);
+        })
+        .catch((err) => console.warn('Auto-generate share code notice:', err));
+    }
+  }, [patient?.id, patient?.shareCode, isOwner, patient?.name, patient?.ownerId]);
+
   // Subscribe to real-time subcollection notes
   useEffect(() => {
     if (!patient?.id) return;
@@ -61,9 +78,13 @@ export function PatientDetailView({ patient, onBack, onAddSoap, onEditSoap, onEd
     [patient.history, subcollectionNotes]
   );
 
-  const handleCopyCode = async () => {
+  const handleCopyCode = async (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
     if (!shareCode) return;
     try {
+      const targetOwnerId = patient.ownerId || auth.currentUser?.uid;
+      // Guarantee code is registered in shareCodes collection before copying
+      await ensureShareCodeRegistered(patient.id, patient.name, targetOwnerId, shareCode);
       await navigator.clipboard.writeText(shareCode);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);

@@ -54,6 +54,8 @@ service cloud.firestore {
           resource.data.get('shareCode', '') is string
           && resource.data.get('shareCode', '').size() > 0
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['accessList'])
+          && request.resource.data.accessList is list
+          && resource.data.get('accessList', []) is list
           && request.resource.data.accessList.hasAll(resource.data.get('accessList', []))
           && request.resource.data.accessList.size() == resource.data.get('accessList', []).size() + 1
           && request.auth.uid in request.resource.data.accessList
